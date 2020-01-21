@@ -1435,7 +1435,7 @@ deverouiller l'arret d'urgence</string>
                </size>
               </property>
               <property name="text">
-               <string>&lt;Non Connecte&gt;</string>
+               <string>&lt;Not Connected&gt;</string>
               </property>
              </widget>
             </item>
@@ -1454,7 +1454,7 @@ deverouiller l'arret d'urgence</string>
                </size>
               </property>
               <property name="text">
-               <string>(De)Connecter</string>
+               <string>(Un)Connect</string>
               </property>
              </widget>
             </item>
@@ -4324,7 +4324,7 @@ color: rgb(0, 0, 63);
               <bool>true</bool>
              </attribute>
              <attribute name="verticalHeaderDefaultSectionSize">
-              <number>15</number>
+              <number>22</number>
              </attribute>
             </widget>
            </item>
@@ -4539,19 +4539,19 @@ color: rgb(0, 0, 63);
      <x>0</x>
      <y>0</y>
      <width>1024</width>
-     <height>21</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="mnuApplication">
     <property name="title">
-     <string>&amp;Fichier</string>
+     <string>&amp;File</string>
     </property>
-    <addaction name="mnuAppOuvrir"/>
-    <addaction name="mnuAppEnregistrer"/>
-    <addaction name="mnuAppEnregistrerSous"/>
-    <addaction name="mnuAppFermerGCode"/>
+    <addaction name="mnuAppOpenGcode"/>
+    <addaction name="mnuAppSaveGcode"/>
+    <addaction name="mnuAppSaveGcodeAs"/>
+    <addaction name="mnuAppCloseGcode"/>
     <addaction name="separator"/>
-    <addaction name="mnuAppQuitter"/>
+    <addaction name="mnuAppQuit"/>
    </widget>
    <widget class="QMenu" name="menuMachine">
     <property name="title">
@@ -4567,33 +4567,23 @@ color: rgb(0, 0, 63);
    </widget>
    <widget class="QMenu" name="menuAide">
     <property name="title">
-     <string>&amp;Aide</string>
+     <string>&amp;Help</string>
     </property>
     <addaction name="mnuA_propos"/>
-   </widget>
-   <widget class="QMenu" name="menuLangue">
-    <property name="title">
-     <string/>
-    </property>
-    <property name="icon">
-     <iconset>
-      <normaloff>i18n/flags/flag_fr.svg</normaloff>i18n/flags/flag_fr.svg</iconset>
-    </property>
    </widget>
    <addaction name="mnuApplication"/>
    <addaction name="menuMachine"/>
    <addaction name="menuAide"/>
-   <addaction name="menuLangue"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
-  <action name="mnuAppOuvrir">
+  <action name="mnuAppOpenGcode">
    <property name="text">
-    <string>&amp;Ouvrir un fichier GCode...</string>
+    <string>&amp;Open GCode...</string>
    </property>
   </action>
-  <action name="mnuAppQuitter">
+  <action name="mnuAppQuit">
    <property name="text">
-    <string>&amp;Quitter</string>
+    <string>&amp;Quit</string>
    </property>
   </action>
   <action name="mnuDebug_mode">
@@ -4612,7 +4602,7 @@ color: rgb(0, 0, 63);
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>Visualiser positions machine (MPos)</string>
+    <string>View positions machine (MPos)</string>
    </property>
   </action>
   <action name="mnu_WPos">
@@ -4620,32 +4610,38 @@ color: rgb(0, 0, 63);
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>Visualiser position de travail (WPos)</string>
+    <string>View working position (WPos)</string>
+   </property>
+   <property name="toolTip">
+    <string>View working position (WPos)</string>
    </property>
   </action>
-  <action name="mnuAppFermerGCode">
+  <action name="mnuAppCloseGcode">
    <property name="text">
-    <string>&amp;Fermer le fichier GCode</string>
+    <string>&amp;Close GCode</string>
    </property>
   </action>
-  <action name="mnuAppEnregistrer">
+  <action name="mnuAppSaveGcode">
    <property name="text">
-    <string>&amp;Enregistrer le fichier GCode</string>
+    <string>&amp;Save GCode</string>
    </property>
   </action>
-  <action name="mnuAppEnregistrerSous">
+  <action name="mnuAppSaveGcodeAs">
    <property name="text">
-    <string>Enregistrer &amp;sous...</string>
+    <string>Save Gcode &amp;As...</string>
    </property>
   </action>
   <action name="mnu_GrblConfig">
    <property name="text">
-    <string>Configuration de Grbl...</string>
+    <string>GRBL Configuration</string>
    </property>
   </action>
   <action name="mnuA_propos">
    <property name="text">
-    <string>A propos de cn5X++...</string>
+    <string>About cn5X++...</string>
+   </property>
+   <property name="toolTip">
+    <string>About cn5X++</string>
    </property>
   </action>
  </widget>
