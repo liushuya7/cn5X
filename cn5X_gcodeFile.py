@@ -32,19 +32,19 @@ from grblCom import grblCom
 
 class gcodeFile(QObject):
   '''
-  Gestion d'un fichier GCode dans la QListView de l'interface graphique reservee a cet usage
-  Methodes :
-  - __init__(QListView) -> Initialise et definit les elements de l'UI qui recevront le contenu du fichier
-  - showFileOpen()        -> Affiche la boite de dialogue d'ouverture
-  - showFileSave()        -> Affiche la boite de dialogue d'enregistrement
-  - readFile(filePath)    -> Charge un fichier dans la QListView
-  - saveFile(filePath)    -> Enregistre le contenu de la QListView dans un fichier
-  - closeFile()           -> Vide la QListView
-  - setGcodeChanged(bool) -> Definit si le contenu de la liste a ete modifie depuis la lecture ou l'enregistrement du fichier
-  - bool = gcodeChanged() -> Renvoi vrai si le contenu de la liste a ete modifie depuis la lecture ou l'enregistrement du fichier
+   Management of a GCode file in the QListView of the graphical interface reserved for this use
+   Methods :
+   - __init __ (QListView) -> Initializes and defines the elements of the UI which will receive the content of the file
+   - showFileOpen () -> Displays the opening dialog box
+   - showFileSave () -> Displays the recording dialog
+   - readFile (filePath) -> Loads a file into the QListView
+   - saveFile (filePath) -> Save the contents of the QListView in a file
+   - closeFile () -> Empty the QListView
+   - setGcodeChanged (bool) -> Defines if the content of the list has been modified since the reading or saving of the file
+   - bool = gcodeChanged () -> Return true if the content of the list has been modified since the file was read or saved
   '''
 
-  sig_log     = pyqtSignal(int, str) # Message de fonctionnement du composant
+  sig_log     = pyqtSignal(int, str) # Component operation message
 
   def __init__(self, gcodeFileUi: QListView):
     super().__init__()

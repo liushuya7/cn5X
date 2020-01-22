@@ -20,24 +20,25 @@
 ' along with this program.  If not, see <http://www.gnu.org/licenses/>.   '
 '                                                                         '
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
+import os
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, pyqtSlot
 from PyQt5.QtWidgets import QDialog, QAbstractButton, QDialogButtonBox, QCheckBox, QSpinBox, QDoubleSpinBox, QLineEdit
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QValidator
+from PyQt5 import uic
 from cn5X_config import *
 from grblCom import grblCom
-from dlgAPropos import *
 from msgbox import *
 from compilOptions import grblCompilOptions
 
-class cn5XAPropos(QObject):
-  ''' Classe assurant la gestion de la boite de dialogue A Propos '''
+self_dir = os.path.dirname(os.path.realpath(__file__))
 
+class cn5XAbout(QObject):
+  ''' About dialog box '''
   def __init__(self, versionString: str, licenceFile: str):
     super().__init__()
-    self.__dlgApropos = QDialog()
-    self.__di = Ui_dlgApropos()
-    self.__di.setupUi(self.__dlgApropos)
+    self.__dlgAbout = QDialog()
+    ui_dlgAbout = os.path.join(self_dir, 'dlgAbout.ui')
+    self.__di = uic.loadUi(ui_dlgAbout, self.__dlgAbout)
     self.__di.lblVersion.setText(versionString)
 
     text=open(licenceFile).read()
@@ -49,12 +50,12 @@ class cn5XAPropos(QObject):
     ParentY = self.parent().geometry().y()
     ParentWidth = self.parent().geometry().width()
     ParentHeight = self.parent().geometry().height()
-    myWidth = self.__dlgApropos.geometry().width()
-    myHeight = self.__dlgApropos.geometry().height()
-    self.__dlgApropos.setFixedSize(self.__dlgApropos.geometry().width(),self.__dlgApropos.geometry().height())
-    self.__dlgApropos.move(ParentX + ((ParentWidth - myWidth) / 2),ParentY + ((ParentHeight - myHeight) / 2),)
-    self.__dlgApropos.setWindowFlags(Qt.Dialog)
+    myWidth = self.__dlgAbout.geometry().width()
+    myHeight = self.__dlgAbout.geometry().height()
+    self.__dlgAbout.setFixedSize(self.__dlgAbout.geometry().width(),self.__dlgAbout.geometry().height())
+    self.__dlgAbout.move(ParentX + ((ParentWidth - myWidth) / 2),ParentY + ((ParentHeight - myHeight) / 2),)
+    self.__dlgAbout.setWindowFlags(Qt.Dialog)
 
-    RC = self.__dlgApropos.exec()
+    RC = self.__dlgAbout.exec()
     return(RC)
 

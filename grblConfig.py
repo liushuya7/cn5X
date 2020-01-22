@@ -20,15 +20,19 @@
 ' along with this program.  If not, see <http://www.gnu.org/licenses/>.   '
 '                                                                         '
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
+import os
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, pyqtSlot
 from PyQt5.QtWidgets import QDialog, QAbstractButton, QDialogButtonBox, QCheckBox, QSpinBox, QDoubleSpinBox, QLineEdit
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QValidator
+from PyQt5 import uic
 from cn5X_config import *
 from grblCom import grblCom
-from dlgConfig import *
 from msgbox import *
+from qweditmask import qwEditMask
+
 from compilOptions import grblCompilOptions
+
+self_dir = os.path.dirname(os.path.realpath(__file__))
 
 class upperCaseValidator(QValidator):
   def validate(self, string, pos):
@@ -38,9 +42,8 @@ class upperCaseValidator(QValidator):
     # return QtGui.QValidator.Acceptable, pos
 
 class grblConfig(QObject):
-  ''' Classe assurant la gestion de la boite de dialogue de configuration de Grbl '''
-
-  # Liste des controles editables (49 controles)
+  ''' Grbl configuration dialog '''
+  # List of editable controls (49 controls)
   #---------------------------------------------------------
   # lneEEPROM lneN0 lneN1
   # spinStepPulse spinStepIdleDelay emStepPortInvert emDirectionPortInvert chkStepEnableInvert chkLimitPinsInvert chkProbePinInvert
@@ -55,8 +58,8 @@ class grblConfig(QObject):
   def __init__(self, grbl: grblCom, nbAxis: int, axisNames: list):
     super().__init__()
     self.__dlgConfig = QDialog()
-    self.__di = Ui_dlgConfig()
-    self.__di.setupUi(self.__dlgConfig)
+    ui_dlgConfig = os.path.join(self_dir, 'dlgConfig.ui')
+    self.__di = uic.loadUi(ui_dlgConfig, self.__dlgConfig)
     self.__configChanged = False
     self.__changedParams = []
     self.__nbAxis = nbAxis

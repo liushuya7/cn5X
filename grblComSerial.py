@@ -32,25 +32,25 @@ from grblComStack import grblStack
 
 class grblComSerial(QObject):
   '''
-  QObject worker assurant la gestion de la communication serie bidirectionnelle entre cn5X++ et grbl.
-  Doit etre execute dans son propre thread pour ne pas bloquer l'interface graphique.
+  QObject worker ensuring the management of two-way serial communication between cn5X ++ and grbl.
+  Must be run in its own thread to not block the GUI.
   '''
 
-  sig_connect = pyqtSignal(bool)     # Message emis a la connexion (valeur = True) et a la deconnexion ou en cas d'erreur de connexion (valeur = False)
-  sig_log     = pyqtSignal(int, str) # Message de fonctionnement du composant grblComSerial, renvoie : logSeverity, message string
-  sig_init    = pyqtSignal(str)      # Emis a la reception de la chaine d'initialisation de Grbl, renvoie la chaine complete
-  sig_ok      = pyqtSignal()         # Emis a la reception de la chaine "ok"
-  sig_error   = pyqtSignal(int)      # Emis a la reception d'une erreur Grbl, renvoie le N° d'erreur
-  sig_alarm   = pyqtSignal(int)      # Emis a la reception d'une alarme Grbl, renvoie le N° d'alarme
-  sig_status  = pyqtSignal(str)      # Emis a la reception d'un message de status ("<...|.>"), renvoie la ligne complete
-  sig_config  = pyqtSignal(str)      # Emis a la reception d'une valeur de config ($XXX)
-  sig_data    = pyqtSignal(str)      # Emis a la reception des autres donnees de Grbl, renvoie la ligne complete
-  sig_emit    = pyqtSignal(str)      # Emis a l'envoi des donnees sur le port serie
-  sig_recu    = pyqtSignal(str)      # Emis a la reception des donnees sur le port serie
-  sig_debug   = pyqtSignal(str)      # Emis a chaque envoi ou reception
+  sig_log     = pyqtSignal(int, str) # Operating message of the grblComSerial component, returns: logSeverity, message string
+  sig_connect = pyqtSignal(bool)     # Message sent on connection (value = True) and on disconnection or in case of connection error (value = False)
+  sig_init    = pyqtSignal(str)      # Emits upon receipt of the Grbl initialization chain, returns the complete chain
+  sig_ok      = pyqtSignal()         # Emits at the reception of "ok" from Grbl
+  sig_error   = pyqtSignal(int)      # Emits upon receipt of a Grbl error, returns the error number
+  sig_alarm   = pyqtSignal(int)      # Emits upon receipt of a Grbl alarm, returns the alarm number
+  sig_status  = pyqtSignal(str)      # Emits upon receipt of a status message ("<... |.>"), returns the complete line
+  sig_config  = pyqtSignal(str)      # Emits upon receipt of a config value ($ XXX)
+  sig_data    = pyqtSignal(str)      # Emits upon receipt of other Grbl data, returns the complete line
+  sig_emit    = pyqtSignal(str)      # Emits when sending data on the serial port
+  sig_recu    = pyqtSignal(str)      # Emits upon receipt of data on the serial port
+  sig_debug   = pyqtSignal(str)      # Emits with each sending or reception
 
 
-  def __init__(self, comPort: str, baudRate: int, pooling: bool):
+  def __init__(self, comPort: str, baudRate: int, polling: bool):
     super().__init__()
 
     self.__abort            = False
@@ -73,18 +73,18 @@ class grblComSerial(QObject):
       CMD_GRBL_GET_GCODE_STATE + '\n'
     ]
     self.__lastQueryTime    = time.time()
-    self.__pooling          = pooling
+    self.__polling          = polling
     self.__okToSendGCode = True
 
 
   @pyqtSlot()
-  def startPooling(self):
-    self.__pooling = True
+  def startPolling(self):
+    self.__polling = True
 
 
   @pyqtSlot()
-  def stopPooling(self):
-    self.__pooling = False
+  def stopPolling(self):
+    self.__polling = False
 
 
   @pyqtSlot()
@@ -320,7 +320,7 @@ class grblComSerial(QObject):
         break # Sortie de la boucle principale
 
       # Interrogations de Grbl a interval regulier selon la sequence definie par self.__querySequence
-      if self.__pooling:
+      if self.__polling:
         if (time.time() - self.__lastQueryTime) * 1000 > GRBL_QUERY_DELAY and self.__initOK:
           if len(self.__querySequence[self.__queryCounter]) == 1:
             self.realTimePush(self.__querySequence[self.__queryCounter])

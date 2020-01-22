@@ -39,8 +39,10 @@ from cnQPushButton import cnQPushButton
 from grblJog import grblJog
 from cn5X_gcodeFile import gcodeFile
 from grblConfig import grblConfig
-from cn5Xapropos import cn5XAPropos
+from cn5Xabout import cn5XAbout
 from xml.dom.minidom import parse, Node, Element
+
+import cn5X_rc
 
 self_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -53,12 +55,13 @@ class GrblMainwindow(QtWidgets.QMainWindow):
   def __init__(self, parent=None):
     QtWidgets.QMainWindow.__init__(self, parent)
 
-    self.ucase = upperCaseValidator(self)
+    self.upper_case = upperCaseValidator(self)
     self.__gcodes_stack = []
     self.__gcodes_stack_pos = -1
     self.__gcode_recall_flag = False
     self.__gcode_current_txt = ""
 
+    # QSettings class provides persistent platform-independent application settings
     self.settings = QSettings(QSettings.NativeFormat, QSettings.UserScope, ORG_NAME, APP_NAME)
 
     parser = argparse.ArgumentParser()
@@ -68,7 +71,7 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     parser.add_argument("-u", "--noEStop", action="store_true", help="Unlock the E-STOP")
     self.__args = parser.parse_args()
 
-    # Retrouve le fichier de licence dans le même répertoire que l'exécutable
+    # Find the license file in the same directory as the executable
     if getattr(sys, 'frozen', False):
         # frozen
         dir_ = os.path.dirname(sys.executable)
@@ -77,28 +80,27 @@ class GrblMainwindow(QtWidgets.QMainWindow):
         dir_ = os.path.dirname(os.path.realpath(__file__))
     self.__licenceFile = "{}/COPYING".format(dir_)
 
-    # Initialise la fenêtre princpale
+    # Initialize the main window
     ui_mainwindow = os.path.join(self_dir, 'mainWindow.ui')
     self.ui = uic.loadUi(ui_mainwindow, self)
-    # self.ui = mainWindow.Ui_mainWindow()
-    # self.ui.setupUi(self)
 
-    self.btnUrgencePictureLocale = ":/cn5X/images/btnUrgence.svg"
-    self.btnUrgenceOffPictureLocale = ":/cn5X/images/btnUrgenceOff.svg"
+    # Emergency button picture location
+    self.btnEmergencyPictureLocation = ":/cn5X/images/btnEmergency.svg"
+    self.btnEmergencyOffPictureLocation = ":/cn5X/images/btnEmergencyOff.svg"
+    self.timerDblClick = QtCore.QTimer() # double click timer for activating Emergency Stop
 
-    self.logGrbl  = self.ui.txtGrblOutput    # Tous les messages de Grbl seront rediriges dans le widget txtGrblOutput
-    self.logCn5X  = self.ui.txtConsoleOutput # Tous les messages applicatif seront rediriges dans le widget txtConsoleOutput
-    self.logDebug = self.ui.txtDebugOutput   # Message debug de Grbl
+    self.logGrbl  = self.ui.txtGrblOutput    # All Grbl messages will be redirected to the txtGrblOutput widget
+    self.logCn5X  = self.ui.txtConsoleOutput # All application messages will be redirected to the txtConsoleOutput widget
+    self.logDebug = self.ui.txtDebugOutput   # Debug message widget
 
-    self.logGrbl.document().setMaximumBlockCount(2000)  # Limite la taille des logs a 2000 lignes
-    self.logCn5X.document().setMaximumBlockCount(2000)  # Limite la taille des logs a 2000 lignes
-    self.logDebug.document().setMaximumBlockCount(2000) # Limite la taille des logs a 2000 lignes
-    self.ui.grpConsole.setCurrentIndex(2)               # Active le tab de la log cn5X++
+    self.logGrbl.document().setMaximumBlockCount(2000)  # Limits the size of logs to 2000 lines
+    self.logCn5X.document().setMaximumBlockCount(2000)
+    self.logDebug.document().setMaximumBlockCount(2000)
+    self.ui.grpConsole.setCurrentIndex(2)  # active the 3rd tab
 
+    # >> LEARN gcodeFile
     self.__gcodeFile = gcodeFile(self.ui.gcodeTable)
     self.__gcodeFile.sig_log.connect(self.on_sig_log)
-
-    self.timerDblClic = QtCore.QTimer()
 
     self.__grblCom = grblCom()
     self.__grblCom.sig_log.connect(self.on_sig_log)
@@ -121,7 +123,7 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     self.ui.dsbJogSpeed.valueChanged.connect(self.on_dsbJogSpeed_valueChanged)
 
     self.__connectionStatus = False
-    self.__arretUrgence     = True
+    self.__eStopON          = True
     self.__cycleRun         = False
     self.__cyclePause       = False
     self.__grblConfigLoaded = False
@@ -151,13 +153,13 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     self.ui.statusBar.showMessage(self.__statusText)
 
     # Positionne l'etat d'activation des controles
-    self.setEnableDisableGroupes()
+    self.setEnableDisableGroups()
 
-    """---------- Connections des evennements de l'interface graphique ----------"""
-    self.ui.btnUrgence.pressed.connect(self.on_arretUrgence)             # Evenements du bouton d'arret d'urgence
-    self.ui.cmbPort.currentIndexChanged.connect(self.on_cmbPort_changed) # un clic sur un element de la liste appellera la methode 'on_cmbPort_changed'
+    """---------- GUI event connections ----------"""
+    self.ui.btnEmergency.pressed.connect(self.on_setEmergency)       # Emergency stop button events
+    self.ui.cmbPort.currentIndexChanged.connect(self.on_cmbPort_changed) # A click on the item of the list will call the method 'on_cmbPort_changed'
 
-    self.ui.mnuBar.hovered.connect(self.on_mnuBar)     # Connexions des routines du menu application
+    self.ui.mnuBar.hovered.connect(self.on_mnuBar)     # Application menu routines connections
     self.ui.mnuAppOpenGcode.triggered.connect(self.on_mnuAppOpenGcode)
     self.ui.mnuAppSaveGcode.triggered.connect(self.on_mnuAppSaveGcode)
     self.ui.mnuAppSaveGcodeAs.triggered.connect(self.on_mnuAppSaveGcodeAs)
@@ -171,23 +173,21 @@ class GrblMainwindow(QtWidgets.QMainWindow):
 
     self.ui.mnuA_propos.triggered.connect(self.on_mnuA_propos)
 
-    self.ui.btnRefresh.clicked.connect(self.populatePortList)            # Refresh de la liste des ports serie
-    self.ui.btnConnect.clicked.connect(self.action_btnConnect)           # un clic sur le bouton "(De)Connecter" appellera la methode 'action_btnConnect'
-    self.ui.btnSend.pressed.connect(self.sendCmd)                        # Bouton d'envoi de commandes unitaires
-    self.ui.txtGCode.setValidator(self.ucase)                            # Force la saisie des GCodes en majuscules
-    self.ui.txtGCode.returnPressed.connect(self.sendCmd)                 # Meme fonction par la touche entree que le bouton d'envoi
-    self.ui.txtGCode.textChanged.connect(self.txtGCode_on_Change)        # Analyse du champ de saisie au fur et a mesure de son edition
+    self.ui.btnRefresh.clicked.connect(self.populatePortList)            # Refresh serial ports list
+    self.ui.btnConnect.clicked.connect(self.action_btnConnect)           # A click on the button "(Un)Connect" will call the method 'action_btnConnect'
+    self.ui.btnSend.pressed.connect(self.sendCmd)                        # Button for sending cmds
+    self.ui.txtGCode.setValidator(self.upper_case)                       # Force all GCodes in capital letters
+    self.ui.txtGCode.returnPressed.connect(self.sendCmd)                 # Same function by the enter key as the send button
+    self.ui.txtGCode.textChanged.connect(self.txtGCode_on_Change)        # Analyze the input field after being edited
     self.ui.txtGCode.keyPressed.connect(self.on_keyPressed)
     self.ui.btnDebug.clicked.connect(self.on_btnDebug)
-    self.ui.btnPausePooling.clicked.connect(self.on_btnPausePooling)
+    self.ui.btnPausePolling.clicked.connect(self.on_btnPausePolling)
 
     self.ui.btnClearDebug.clicked.connect(self.clearDebug)
     self.ui.btnSpinM3.clicked.connect(self.on_btnSpinM3)
     self.ui.btnSpinM4.clicked.connect(self.on_btnSpinM4)
     self.ui.btnSpinM5.clicked.connect(self.on_btnSpinM5)
-    self.ui.btnFloodM7.clicked.connect(self.on_btnFloodM7)
-    self.ui.btnFloodM8.clicked.connect(self.on_btnFloodM8)
-    self.ui.btnFloodM9.clicked.connect(self.on_btnFloodM9)
+
     self.ui.lblG54.clicked.connect(self.on_lblG5xClick)
     self.ui.lblG55.clicked.connect(self.on_lblG5xClick)
     self.ui.lblG56.clicked.connect(self.on_lblG5xClick)
@@ -240,18 +240,18 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     self.ui.gcodeTable.customContextMenuRequested.connect(self.on_gcodeTableContextMenu)
     self.ui.dialAvance.customContextMenuRequested.connect(self.on_dialAvanceContextMenu)
     self.ui.dialBroche.customContextMenuRequested.connect(self.on_dialBrocheContextMenu)
-    self.ui.lblLblPosX.customContextMenuRequested.connect(lambda: self.on_lblPosContextMenu(0))
-    self.ui.lblLblPosY.customContextMenuRequested.connect(lambda: self.on_lblPosContextMenu(1))
-    self.ui.lblLblPosZ.customContextMenuRequested.connect(lambda: self.on_lblPosContextMenu(2))
-    self.ui.lblLblPosA.customContextMenuRequested.connect(lambda: self.on_lblPosContextMenu(3))
-    self.ui.lblLblPosB.customContextMenuRequested.connect(lambda: self.on_lblPosContextMenu(4))
-    self.ui.lblLblPosC.customContextMenuRequested.connect(lambda: self.on_lblPosContextMenu(5))
-    self.ui.lblPosX.customContextMenuRequested.connect(lambda: self.on_lblPosContextMenu(0))
-    self.ui.lblPosY.customContextMenuRequested.connect(lambda: self.on_lblPosContextMenu(1))
-    self.ui.lblPosZ.customContextMenuRequested.connect(lambda: self.on_lblPosContextMenu(2))
-    self.ui.lblPosA.customContextMenuRequested.connect(lambda: self.on_lblPosContextMenu(3))
-    self.ui.lblPosB.customContextMenuRequested.connect(lambda: self.on_lblPosContextMenu(4))
-    self.ui.lblPosC.customContextMenuRequested.connect(lambda: self.on_lblPosContextMenu(5))
+    self.ui.label_grblPos_1.customContextMenuRequested.connect(lambda: self.on_grblPos_6ontextMenu(0))
+    self.ui.label_grblPos_2.customContextMenuRequested.connect(lambda: self.on_grblPos_6ontextMenu(1))
+    self.ui.label_grblPos_3.customContextMenuRequested.connect(lambda: self.on_grblPos_6ontextMenu(2))
+    self.ui.label_grblPos_4.customContextMenuRequested.connect(lambda: self.on_grblPos_6ontextMenu(3))
+    self.ui.label_grblPos_5.customContextMenuRequested.connect(lambda: self.on_grblPos_6ontextMenu(4))
+    self.ui.label_grblPos_6.customContextMenuRequested.connect(lambda: self.on_grblPos_6ontextMenu(5))
+    self.ui.grblPos_1.customContextMenuRequested.connect(lambda: self.on_grblPos_6ontextMenu(0))
+    self.ui.grblPos_2.customContextMenuRequested.connect(lambda: self.on_grblPos_6ontextMenu(1))
+    self.ui.grblPos_3.customContextMenuRequested.connect(lambda: self.on_grblPos_6ontextMenu(2))
+    self.ui.grblPos_4.customContextMenuRequested.connect(lambda: self.on_grblPos_6ontextMenu(3))
+    self.ui.grblPos_5.customContextMenuRequested.connect(lambda: self.on_grblPos_6ontextMenu(4))
+    self.ui.grblPos_6.customContextMenuRequested.connect(lambda: self.on_grblPos_6ontextMenu(5))
     self.ui.lblPlan.customContextMenuRequested.connect(self.on_lblPlanContextMenu)
     self.ui.lblUnites.customContextMenuRequested.connect(self.on_lblUnitesContextMenu)
     self.ui.lblCoord.customContextMenuRequested.connect(self.on_lblCoordContextMenu)
@@ -287,14 +287,13 @@ class GrblMainwindow(QtWidgets.QMainWindow):
       self.setCursor(Qt.ArrowCursor)
 
     if self.__args.noEStop:
-      self.__arretUrgence = False
-      self.log(logSeverity.info.value, "Arret d'urgence deverrouille.")
+      self.__eStopON = False
+      self.log(logSeverity.info.value, "Emergency stop unlocked.")
 
-    # Initialise l'etat d'activation ou non des controles
-    # En fonction de la selection du port serie ou non
+    # Initializes the state of activation of the controls depending on the selection of the serial port or not
     self.setEnableDisableConnectControls()
-    # Active ou desactive les boutons de cycle
-    self.setEnableDisableGroupes()
+    # Enables or disables the cycle buttons
+    self.setEnableDisableGroups()
 
   def populatePortList(self):
     ''' Rempli la liste des ports serie '''
@@ -308,11 +307,11 @@ class GrblMainwindow(QtWidgets.QMainWindow):
             self.ui.cmbPort.setCurrentIndex(len(self.ui.cmbPort)-1)
     else:
       m = msgBox(
-                  title  = self.tr("Attention !"),
-                  text   = self.tr("Aucun port de communication disponible !"),
-                  info   = self.tr("{} n'a pas trouve de port serie permettant de communiquer avec grbl.").format(sys.argv[0]),
+                  title  = "Attention !",
+                  text   = "Aucun port de communication disponible !",
+                  info   = "{} n'a pas trouve de port serie permettant de communiquer avec grbl.".format(sys.argv[0]),
                   icon   = msgIconList.Information,
-                  detail = self.tr("\nclass serialCom:\nL'appel de \"serial.tools.list_ports.comports()\" n'a renvoye aucun port."),
+                  detail = "\nclass serialCom:\nL'appel de \"serial.tools.list_ports.comports()\" n'a renvoye aucun port.",
                   stdButton = msgButtonList.Close
                 )
       m.afficheMsg()
@@ -326,8 +325,7 @@ class GrblMainwindow(QtWidgets.QMainWindow):
 
   def setEnableDisableConnectControls(self):
     '''
-    Active ou desactive les controles de connexion en fonction de
-    l'etat de connection et de selection du port
+    Activate or deactivate connection checks according to port connection and selection status
     '''
     if self.__connectionStatus:
       self.ui.cmbPort.setEnabled(False)
@@ -343,42 +341,42 @@ class GrblMainwindow(QtWidgets.QMainWindow):
         self.ui.btnConnect.setEnabled(True)
 
 
-  def setEnableDisableGroupes(self):
+  def setEnableDisableGroups(self):
     '''
-    Determine l'etat Enable/Disable des differents groupes de controles
-    en fonction de l'etat de connexion et de l'etat du bouton d'arret d'urgence.
+    Determines the Enable / Disable state of the different control groups
+    depending on the connection state and the state of the emergency stop button.
     '''
     if not self.__connectionStatus:
-      # Pas connecte, tout doit etre desactive et l'arret d'urgence enfonce
-      self.ui.btnUrgence.setIcon(QtGui.QIcon(self.btnUrgenceOffPictureLocale))
-      self.ui.btnUrgence.setToolTip("Double clic pour\ndeverouiller l'arret d'urgence")
-      self.ui.frmArretUrgence.setEnabled(False)
-      self.ui.frmControleVitesse.setEnabled(False)
+      # Not connected, everything must be deactivated and the emergency stop pressed
+      self.ui.btnEmergency.setIcon(QtGui.QIcon(self.btnEmergencyOffPictureLocation))
+      self.ui.btnEmergency.setToolTip("Double click to \n to unlock the emergency stop")
+      self.ui.frmEmergency.setEnabled(False)
+      self.ui.frmControlSpeed.setEnabled(False)
       self.ui.grpJog.setEnabled(False)
       self.ui.frmGcodeInput.setEnabled(False)
-      self.ui.frmBoutons.setEnabled(False)
+      self.ui.frmButtons.setEnabled(False)
       self.ui.grpStatus.setEnabled(False)
       self.ui.frmHomeAlarm.setEnabled(False)
-    elif self.__arretUrgence:
-      # Connecte mais sous arret d'urgence : Tout est desactive sauf l'arret d'urgence
-      self.ui.btnUrgence.setIcon(QtGui.QIcon(self.btnUrgenceOffPictureLocale))
-      self.ui.btnUrgence.setToolTip("Double clic pour\ndeverouiller l'arret d'urgence")
-      self.ui.frmArretUrgence.setEnabled(True)
-      self.ui.frmControleVitesse.setEnabled(False)
+    elif self.__eStopON:
+      # Connect but under emergency stop: Everything is deactivated except emergency stop
+      self.ui.btnEmergency.setIcon(QtGui.QIcon(self.btnEmergencyOffPictureLocation))
+      self.ui.btnEmergency.setToolTip("Double click to \n to unlock the emergency stop")
+      self.ui.frmEmergency.setEnabled(True)
+      self.ui.frmControlSpeed.setEnabled(False)
       self.ui.grpJog.setEnabled(False)
       self.ui.frmGcodeInput.setEnabled(False)
-      self.ui.frmBoutons.setEnabled(False)
+      self.ui.frmButtons.setEnabled(False)
       self.ui.grpStatus.setEnabled(False)
       self.ui.frmHomeAlarm.setEnabled(False)
     else:
-      # Tout est en ordre, on active tout
-      self.ui.btnUrgence.setIcon(QtGui.QIcon(self.btnUrgencePictureLocale))
-      self.ui.btnUrgence.setToolTip("Arret d'urgence")
-      self.ui.frmArretUrgence.setEnabled(True)
-      self.ui.frmControleVitesse.setEnabled(True)
+      # Everything is in order, we activate everything
+      self.ui.btnEmergency.setIcon(QtGui.QIcon(self.btnEmergencyPictureLocation))
+      self.ui.btnEmergency.setToolTip("Emergency Stop")
+      self.ui.frmEmergency.setEnabled(True)
+      self.ui.frmControlSpeed.setEnabled(True)
       self.ui.grpJog.setEnabled(True)
       self.ui.frmGcodeInput.setEnabled(True)
-      self.ui.frmBoutons.setEnabled(True)
+      self.ui.frmButtons.setEnabled(True)
       self.ui.grpStatus.setEnabled(True)
       self.ui.frmHomeAlarm.setEnabled(True)
       if self.__gcodeFile.isFileLoaded():
@@ -403,7 +401,7 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     if self.__connectionStatus:
       self.ui.mnu_MPos.setEnabled(True)
       self.ui.mnu_WPos.setEnabled(True)
-      if self.__arretUrgence:
+      if self.__eStopON:
         self.ui.mnu_GrblConfig.setEnabled(True)
       else:
         self.ui.mnu_GrblConfig.setEnabled(False)
@@ -432,7 +430,7 @@ class GrblMainwindow(QtWidgets.QMainWindow):
         if not self.ui.btnDebug.isChecked():
           self.ui.grpConsole.setCurrentIndex(2)
     # Active ou desactive les boutons de cycle
-    self.setEnableDisableGroupes()
+    self.setEnableDisableGroups()
     # Restore le curseur de souris
     self.setCursor(Qt.ArrowCursor)
 
@@ -487,46 +485,48 @@ class GrblMainwindow(QtWidgets.QMainWindow):
 
   @pyqtSlot()
   def on_mnu_GrblConfig(self):
-    ''' Appel de la boite de dialogue de configuration
-    '''
+    ''' Configuration dialog'''
     self.__grblConfigLoaded = True
     dlgConfig = grblConfig(self.__grblCom, self.__nbAxis, self.__axisNames)
     dlgConfig.setParent(self)
     dlgConfig.sig_config_changed.connect(self.on_sig_config_changed)
     dlgConfig.showDialog()
     self.__grblConfigLoaded = False
-    # Rafraichi la config
+    # Refreshed the config
     self.__grblCom.gcodeInsert(CMD_GRBL_GET_SETTINGS)
+
+  @pyqtSlot()
+  def on_mnu_ImplantRegistraion(self):
+    ''' Implant registration dialog'''
+    
 
 
   @pyqtSlot(str)
   def on_sig_config_changed(self, data: str):
-    self.log(logSeverity.info.value, "Configuration de Grbl changee : {}").format(data)
+    self.log(logSeverity.info.value, "Configuration de Grbl changee : {}".format(data) )
 
 
   @pyqtSlot()
-  def on_arretUrgence(self):
-    if self.__arretUrgence:
-      # L'arret d'urgence est actif, on doit faire un double click pour le desactiver
-      if not self.timerDblClic.isActive():
-        # On est pas dans le timer du double click,
-        # c'est donc un simple click qui ne suffit pas a deverrouiller le bouton d'arret d'urgence,
-        # C'est le premier click, On active le timer pour voir si le 2eme sera dans le temp imparti
-        self.timerDblClic.setSingleShot(True)
-        self.timerDblClic.start(QtWidgets.QApplication.instance().doubleClickInterval())
+  def on_setEmergency(self):
+    if self.__eStopON:
+      # If the emergency stop is active, you have to double click to deactivate it
+      if not self.timerDblClick.isActive():
+        # Double click timer: if it's a simple click, it will not unlock the emergency stop button. Upon first click, we activate the timer to see if the 2nd will be within the allotted time
+        self.timerDblClick.setSingleShot(True)
+        self.timerDblClick.start(QtWidgets.QApplication.instance().doubleClickInterval())
       else:
-        # self.timerDblClic.remainingTime() > 0 # Double clic detecte
-        self.timerDblClic.stop()
-        self.__arretUrgence = False
-        self.log(logSeverity.info.value, "Deverouillage de l'arret d'urgence.")
+        # self.timerDblClick.remainingTime() > 0 # Double click detected
+        self.timerDblClick.stop()
+        self.__eStopON = False
+        self.log(logSeverity.info.value, "Unlocking the Emergency Stop.")
     else:
-      self.__grblCom.clearCom() # Vide la file d'attente de communication
-      self.__grblCom.realTimePush(REAL_TIME_SOFT_RESET) # Envoi Ctrl+X.
-      self.__arretUrgence = True
-      self.log(logSeverity.warning.value, "Arret d'urgence STOP !!!")
+      self.__grblCom.clearCom() # Empty the communication queue
+      self.__grblCom.realTimePush(REAL_TIME_SOFT_RESET) # dispatch Ctrl+X.
+      self.__eStopON = True
+      self.log(logSeverity.warning.value, "Emergency Stop ON!!!")
 
-    # Actualise l'etat actif/inactif des groupes de controles de pilotage de Grbl
-    self.setEnableDisableGroupes()
+    # Updates the active / inactive state of the Grbl control groups
+    self.setEnableDisableGroups()
 
 
   @pyqtSlot()
@@ -557,11 +557,11 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     self.__connectionStatus = self.__grblCom.isOpen()
     if self.__connectionStatus:
       # Mise a jour de l'interface machine connectée
-      self.ui.lblConnectStatus.setText(self.tr("Connect to {}").format(self.ui.cmbPort.currentText().split("-")[0].strip()))
+      self.ui.lblConnectStatus.setText("Connect to {}".format(self.ui.cmbPort.currentText().split("-")[0].strip()))
       self.ui.btnConnect.setText("Unconnect")
       self.setEnableDisableConnectControls()
       # Active les groupes de controles de pilotage de Grbl
-      self.setEnableDisableGroupes()
+      self.setEnableDisableGroups()
     else:
       # Mise a jour de l'interface machine non connectée
       self.ui.lblConnectStatus.setText("<Not Connected>")
@@ -570,9 +570,9 @@ class GrblMainwindow(QtWidgets.QMainWindow):
       self.ui.statusBar.showMessage(self.__statusText)
       self.setEnableDisableConnectControls()
       # Force la position de l'arret d'urgence
-      self.__arretUrgence = True
+      self.__eStopON = True
       # Active les groupes de controles de pilotage de Grbl
-      self.setEnableDisableGroupes()
+      self.setEnableDisableGroups()
       # On redemandera les paramètres à la prochaine connection
       self.__firstGetSettings = False
 
@@ -672,30 +672,6 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     self.__grblCom.gcodeInsert("M5")
     self.ui.btnSpinM3.setEnabled(True)
     self.ui.btnSpinM4.setEnabled(True)
-
-
-  @pyqtSlot()
-  def on_btnFloodM7(self):
-    if self.decode.get_etatArrosage() != "M7" and self.decode.get_etatArrosage() != "M78":
-      # Envoi "Real Time Command" plutot que self.__grblCom.enQueue("M7")
-      self.__grblCom.realTimePush(REAL_TIME_TOGGLE_MIST_COOLANT)
-
-
-  @pyqtSlot()
-  def on_btnFloodM8(self):
-    if self.decode.get_etatArrosage() != "M8" and self.decode.get_etatArrosage() != "M78":
-      # Envoi "Real Time Command" plutot que self.__grblCom.enQueue("M8")
-      self.__grblCom.realTimePush(REAL_TIME_TOGGLE_FLOOD_COOLANT)
-
-
-  @pyqtSlot()
-  def on_btnFloodM9(self):
-    if self.decode.get_etatArrosage() == "M7" or self.decode.get_etatArrosage() == "M78":
-      # Envoi "Real Time Command"
-      self.__grblCom.realTimePush(REAL_TIME_TOGGLE_MIST_COOLANT)
-    if self.decode.get_etatArrosage() == "M8" or self.decode.get_etatArrosage() == "M78":
-      # Envoi "Real Time Command" plutot que self.__grblCom.enQueue("M9")
-      self.__grblCom.realTimePush(REAL_TIME_TOGGLE_FLOOD_COOLANT)
 
 
   @pyqtSlot(str, QtGui.QMouseEvent)
@@ -842,17 +818,16 @@ class GrblMainwindow(QtWidgets.QMainWindow):
 
   @pyqtSlot(str)
   def on_sig_config(self, data: str):
-    # Repere la chaine "[AXS:5:XYZAB]" pour recuperer le nombre d'axes et leurs noms
+    # Find the chain "[AXS: 5: XYZAB]" to retrieve the number of axes and their names
     if data[:5] == "[AXS:":
       self.__nbAxis           = int(data[1:-1].split(':')[1])
       self.__axisNames        = list(data[1:-1].split(':')[2])
       if len(self.__axisNames) < self.__nbAxis:
-        # Il est posible qu'il y ait moins de lettres que le nombre d'axes si Grbl
-        # implémente l'option REPORT_VALUE_FOR_AXIS_NAME_ONCE
+        # It is possible that there are fewer letters than the number of axes if Grbl implements the REPORT_VALUE_FOR_AXIS_NAME_ONCE option.
         self.__nbAxis = len(self.__axisNames);
       self.updateAxisNumber()
       self.decode.setNbAxis(self.__nbAxis)
-    # Memorise les courses maxi pour calcul des jogs max.
+    # Memorizes the maximum travel range
     elif data[:4] == "$130":
       self.__maxTravel[0] = float(data[5:])
     elif data[:4] == "$131":
@@ -871,63 +846,63 @@ class GrblMainwindow(QtWidgets.QMainWindow):
 
 
   def updateAxisNumber(self):
-      self.ui.lblLblPosX.setText(self.__axisNames[0])
-      self.ui.lblLblPosY.setText(self.__axisNames[1])
-      self.ui.lblLblPosZ.setText(self.__axisNames[2])
+      self.ui.label_grblPos_1.setText(self.__axisNames[0])
+      self.ui.label_grblPos_2.setText(self.__axisNames[1])
+      self.ui.label_grblPos_3.setText(self.__axisNames[2])
 
       if self.__nbAxis > 3:
-        self.ui.lblLblPosA.setText(self.__axisNames[3])
-        self.ui.lblLblPosA.setEnabled(True)
-        self.ui.lblLblPosA.setStyleSheet("")
-        self.ui.lblPosA.setEnabled(True)
-        self.ui.lblPosA.setStyleSheet("")
+        self.ui.label_grblPos_4.setText(self.__axisNames[3])
+        self.ui.label_grblPos_4.setEnabled(True)
+        self.ui.label_grblPos_4.setStyleSheet("")
+        self.ui.grblPos_4.setEnabled(True)
+        self.ui.grblPos_4.setStyleSheet("")
         self.ui.lblG5xA.setStyleSheet("")
         self.ui.lblG92A.setStyleSheet("")
         self.ui.lblWcoA.setStyleSheet("")
       else:
-        self.ui.lblLblPosA.setText("")
-        self.ui.lblLblPosA.setEnabled(False)
-        self.ui.lblLblPosA.setStyleSheet("color: rgb(224, 224, 230);")
-        self.ui.lblPosA.setEnabled(False)
-        self.ui.lblPosA.setStyleSheet("color: rgb(224, 224, 230);")
+        self.ui.label_grblPos_4.setText("")
+        self.ui.label_grblPos_4.setEnabled(False)
+        self.ui.label_grblPos_4.setStyleSheet("color: rgb(224, 224, 230);")
+        self.ui.grblPos_4.setEnabled(False)
+        self.ui.grblPos_4.setStyleSheet("color: rgb(224, 224, 230);")
         self.ui.lblG5xA.setStyleSheet("color: rgb(224, 224, 230);")
         self.ui.lblG92A.setStyleSheet("color: rgb(224, 224, 230);")
         self.ui.lblWcoA.setStyleSheet("color: rgb(224, 224, 230);")
 
       if self.__nbAxis > 4:
-        self.ui.lblLblPosB.setText(self.__axisNames[4])
-        self.ui.lblLblPosB.setEnabled(True)
-        self.ui.lblLblPosB.setStyleSheet("")
-        self.ui.lblPosB.setEnabled(True)
-        self.ui.lblPosB.setStyleSheet("")
+        self.ui.label_grblPos_5.setText(self.__axisNames[4])
+        self.ui.label_grblPos_5.setEnabled(True)
+        self.ui.label_grblPos_5.setStyleSheet("")
+        self.ui.grblPos_5.setEnabled(True)
+        self.ui.grblPos_5.setStyleSheet("")
         self.ui.lblG5xB.setStyleSheet("")
         self.ui.lblG92B.setStyleSheet("")
         self.ui.lblWcoB.setStyleSheet("")
       else:
-        self.ui.lblLblPosB.setText("")
-        self.ui.lblLblPosB.setEnabled(False)
-        self.ui.lblLblPosB.setStyleSheet("color: rgb(224, 224, 230);")
-        self.ui.lblPosB.setEnabled(False)
-        self.ui.lblPosB.setStyleSheet("color: rgb(224, 224, 230);")
+        self.ui.label_grblPos_5.setText("")
+        self.ui.label_grblPos_5.setEnabled(False)
+        self.ui.label_grblPos_5.setStyleSheet("color: rgb(224, 224, 230);")
+        self.ui.grblPos_5.setEnabled(False)
+        self.ui.grblPos_5.setStyleSheet("color: rgb(224, 224, 230);")
         self.ui.lblG5xB.setStyleSheet("color: rgb(224, 224, 230);")
         self.ui.lblG92B.setStyleSheet("color: rgb(224, 224, 230);")
         self.ui.lblWcoB.setStyleSheet("color: rgb(224, 224, 230);")
 
       if self.__nbAxis > 5:
-        self.ui.lblLblPosC.setText(self.__axisNames[5])
-        self.ui.lblLblPosC.setEnabled(True)
-        self.ui.lblLblPosC.setStyleSheet("")
-        self.ui.lblPosC.setEnabled(True)
-        self.ui.lblPosC.setStyleSheet("")
+        self.ui.label_grblPos_6.setText(self.__axisNames[5])
+        self.ui.label_grblPos_6.setEnabled(True)
+        self.ui.label_grblPos_6.setStyleSheet("")
+        self.ui.grblPos_6.setEnabled(True)
+        self.ui.grblPos_6.setStyleSheet("")
         self.ui.lblG5xC.setStyleSheet("")
         self.ui.lblG92C.setStyleSheet("")
         self.ui.lblWcoC.setStyleSheet("")
       else:
-        self.ui.lblLblPosC.setText("")
-        self.ui.lblLblPosC.setEnabled(False)
-        self.ui.lblLblPosC.setStyleSheet("color: rgb(224, 224, 230);")
-        self.ui.lblPosC.setEnabled(False)
-        self.ui.lblPosC.setStyleSheet("color: rgb(224, 224, 230);")
+        self.ui.label_grblPos_6.setText("")
+        self.ui.label_grblPos_6.setEnabled(False)
+        self.ui.label_grblPos_6.setStyleSheet("color: rgb(224, 224, 230);")
+        self.ui.grblPos_6.setEnabled(False)
+        self.ui.grblPos_6.setStyleSheet("color: rgb(224, 224, 230);")
         self.ui.lblG5xC.setStyleSheet("color: rgb(224, 224, 230);")
         self.ui.lblG92C.setStyleSheet("color: rgb(224, 224, 230);")
         self.ui.lblWcoC.setStyleSheet("color: rgb(224, 224, 230);")
@@ -987,23 +962,22 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     if self.ui.mnuDebug_mode.isChecked():
       if not self.ui.btnDebug.isChecked():
         self.ui.btnDebug.setChecked(True)
-      self.ui.btnPausePooling.setEnabled(True)
+      self.ui.btnPausePolling.setEnabled(True)
     else:
       if self.ui.btnDebug.isChecked():
         self.ui.btnDebug.setChecked(False)
       # Ensure pooling in active when debug is off
-      self.ui.btnPausePooling.setEnabled(False)
-      self.ui.btnPausePooling.setChecked(False)
-      self.__grblCom.startPooling()
+      self.ui.btnPausePolling.setEnabled(False)
+      self.ui.btnPausePolling.setChecked(False)
+      self.__grblCom.startPolling()
 
 
   @pyqtSlot()
   def on_mnuA_propos(self):
-    ''' Appel de la boite de dialogue A Propos
-    '''
-    dlgApropos = cn5XAPropos(self.tr("Version {}").format(APP_VERSION_STRING), self.__licenceFile)
-    dlgApropos.setParent(self)
-    dlgApropos.showDialog()
+    ''' Show up the About dialog box'''
+    dlgAbout = cn5XAbout("Version {}".format(APP_VERSION_STRING), self.__licenceFile)
+    dlgAbout.setParent(self)
+    dlgAbout.showDialog()
 
 
   @pyqtSlot()
@@ -1012,25 +986,25 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     if self.ui.btnDebug.isChecked():
       if not self.ui.mnuDebug_mode.isChecked():
         self.ui.mnuDebug_mode.setChecked(True)
-      self.ui.btnPausePooling.setEnabled(True)
+      self.ui.btnPausePolling.setEnabled(True)
       self.on_sig_debug("cn5X++ (v{}) : Starting debug.".format(APP_VERSION_STRING))
     else:
       self.on_sig_debug("cn5X++ (v{}) : Stop debugging.".format(APP_VERSION_STRING))
       if self.ui.mnuDebug_mode.isChecked():
         self.ui.mnuDebug_mode.setChecked(False)
       # Ensure pooling in active when debug is off
-      self.ui.btnPausePooling.setEnabled(False)
-      self.ui.btnPausePooling.setChecked(False)
-      self.__grblCom.startPooling()
+      self.ui.btnPausePolling.setEnabled(False)
+      self.ui.btnPausePolling.setChecked(False)
+      self.__grblCom.startPolling()
 
 
   @pyqtSlot()
-  def on_btnPausePooling(self):
-    self.log(logSeverity.info.value, "on_btnPausePooling({})".format(self.ui.btnPausePooling.isChecked()))
-    if self.ui.btnPausePooling.isChecked():
-      self.__grblCom.stopPooling()
+  def on_btnPausePolling(self):
+    self.log(logSeverity.info.value, "on_btnPausePolling({})".format(self.ui.btnPausePolling.isChecked()))
+    if self.ui.btnPausePolling.isChecked():
+      self.__grblCom.stopPolling()
     else:
-      self.__grblCom.startPooling()
+      self.__grblCom.startPolling()
 
 
   @pyqtSlot()
@@ -1039,7 +1013,7 @@ class GrblMainwindow(QtWidgets.QMainWindow):
 
 
   def startCycle(self):
-    self.log(logSeverity.info.value, "Demarrage du cycle...")
+    self.log(logSeverity.info.value, "Cycle start...")
     self.__gcodeFile.selectGCodeFileLine(0)
     self.__cycleRun = True
     self.__cyclePause = False
@@ -1051,16 +1025,16 @@ class GrblMainwindow(QtWidgets.QMainWindow):
 
   def pauseCycle(self):
     if self.ui.lblEtat.text() == GRBL_STATUS_HOLD1:
-      self.log(logSeverity.warning.value, "Hold en cours, impossible de repartir maintenant.")
+      self.log(logSeverity.warning.value, "Hold in progress, impossible to leave now.")
     if self.ui.lblEtat.text() == GRBL_STATUS_HOLD0:
-      self.log(logSeverity.info.value, "Reprise du cycle...")
+      self.log(logSeverity.info.value, "Resume cycle...")
       self.__grblCom.realTimePush(REAL_TIME_CYCLE_START_RESUME)
       self.__cyclePause = False
       self.ui.btnStart.setButtonStatus(True)
       self.ui.btnPause.setButtonStatus(False)
       self.ui.btnStop.setButtonStatus(False)
     else:
-      self.log(logSeverity.info.value, "Pause du cycle...")
+      self.log(logSeverity.info.value, "Pause cycle...")
       self.__grblCom.realTimePush(REAL_TIME_FEED_HOLD)
       self.__cyclePause = True
       self.ui.btnStart.setButtonStatus(False)
@@ -1158,9 +1132,9 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     self.cMenu.popup(QtGui.QCursor.pos())
 
 
-  def on_lblPosContextMenu(self, axis: str):
+  def on_grblPos_6ontextMenu(self, axis: str):
     self.cMenu = QtWidgets.QMenu(self)
-    resetX = QtWidgets.QAction(self.tr("Reinitialiser l'axe {} a zero").format(self.__axisNames[axis]), self)
+    resetX = QtWidgets.QAction("Reinitialiser l'axe {} a zero".format(self.__axisNames[axis]), self)
     resetX.triggered.connect(lambda: self.__grblCom.gcodePush("G10 P0 L20 {}0".format(self.__axisNames[axis])))
     self.cMenu.addAction(resetX)
     resetAll = QtWidgets.QAction("Reinitialiser tous les axes a zero", self)
@@ -1170,7 +1144,7 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     resetAll.triggered.connect(lambda: self.__grblCom.gcodePush(gcodeString))
     self.cMenu.addAction(resetAll)
     self.cMenu.addSeparator()
-    resetX = QtWidgets.QAction(self.tr("Retour de {} a la position zero").format(self.__axisNames[axis]), self)
+    resetX = QtWidgets.QAction("Retour de {} a la position zero".format(self.__axisNames[axis]), self)
     cmdJog1 = CMD_GRBL_JOG + "G90G21F{}{}0".format(self.ui.dsbJogSpeed.value(), self.__axisNames[axis])
     resetX.triggered.connect(lambda: self.__grblCom.gcodePush(cmdJog1))
     self.cMenu.addAction(resetX)
@@ -1185,7 +1159,7 @@ class GrblMainwindow(QtWidgets.QMainWindow):
 
   def on_lblGXXContextMenu(self, piece: int):
     self.cMenu = QtWidgets.QMenu(self)
-    setOrigineAll = QtWidgets.QAction(self.tr("Positionner l'origine piece {} (G{})").format(str(piece), str(piece + 53)), self)
+    setOrigineAll = QtWidgets.QAction("Positionner l'origine piece {} (G{})".format(str(piece), str(piece + 53)), self)
 
   def on_lblPlanContextMenu(self):
     self.cMenu = QtWidgets.QMenu(self)
@@ -1224,7 +1198,6 @@ class GrblMainwindow(QtWidgets.QMainWindow):
 
 
 """******************************************************************"""
-
 
 if __name__ == '__main__':
   import sys

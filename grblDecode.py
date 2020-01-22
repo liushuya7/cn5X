@@ -33,10 +33,10 @@ from grblCom import grblCom
 
 class grblDecode(QObject):
   '''
-  Classe de decodage des reponses de GRBL :
-  - Decode les reponses de Grbl,
-  - Met a jour l'interface graphique.
-  - Stocke des valeurs des parametres decodes.
+  GRBL response decoding class:
+   - Decode Grbl's responses,
+   - Updates the graphical interface.
+   - Stores values of decode parameters.
   '''
   def __init__(self, ui, log, grbl: grblCom):
     super().__init__()
@@ -72,113 +72,113 @@ class grblDecode(QObject):
 
   def setNbAxis(self, val: int):
     if val < 3 or val > 6:
-      raise RuntimeError(self.tr("Le nombre d'axes doit etre compris entre 3 et 6 !"))
+      raise RuntimeError("The number of axes must be between 3 and 6!")
     self.__nbAxis = val
-
 
   def getNextStatus(self):
     self.__getNextStatusOutput = True
 
-
   def getNextGCodeParams(self):
     self.__getNextGCodeParams = True
-
 
   def getNextGCodeState(self):
     self.__getNextGCodeState = True
 
-
   def decodeGrblStatus(self, grblOutput):
 
     if grblOutput[0] != "<" or grblOutput[-1] != ">":
-      return self.tr("decodeGrblStatus : erreur ! \n[{}] Status incorrect.").format(grblOutput)
+      return "decodeGrblStatus : error ! \n[{}] Status incorrect.".format(grblOutput)
 
-    # Affiche la chaine complette dans la barrs de status self.__statusText
+    # Displays the complete chain in the status bar self.__statusText
     self.ui.statusBar.showMessage("{} + {}".format(self.__grblCom.grblVersion(), grblOutput))
 
     flagPn = False
-    tblDecode = grblOutput[1:-1].split("|")
+    tblDecode = grblOutput[1:-1].split("|") # first remove the "< ... >" brackets, then split by "|"
     for D in tblDecode:
-      ###print("D = {" + D + "}")
+      # debug
+      # print("D = {" + D + "}")
       if D in self.__validMachineState:
         if D != self.__etatMachine:
-          self.ui.lblEtat.setText(D)
+          self.ui.grblSatus.setText(D)
           self.__etatMachine = D
           if D == GRBL_STATUS_IDLE:
             if self.ui.btnStart.getButtonStatus():    self.ui.btnStart.setButtonStatus(False)
             if self.ui.btnPause.getButtonStatus():    self.ui.btnPause.setButtonStatus(False)
             if not self.ui.btnStop.getButtonStatus(): self.ui.btnStop.setButtonStatus(True)
           elif D ==GRBL_STATUS_HOLD0:
-            self.ui.lblEtat.setToolTip("Hold complete. Ready to resume.")
+            self.ui.grblSatus.setToolTip("Hold complete. Ready to resume.")
           elif D ==GRBL_STATUS_HOLD1:
-            self.ui.lblEtat.setToolTip("Hold in-progress. Reset will throw an alarm.")
+            self.ui.grblSatus.setToolTip("Hold in-progress. Reset will throw an alarm.")
           elif D =="Door:0":
-            self.ui.lblEtat.setToolTip("Door closed. Ready to resume.")
+            self.ui.grblSatus.setToolTip("Door closed. Ready to resume.")
           elif D =="Door:1":
-            self.ui.lblEtat.setToolTip("Machine stopped. Door still ajar. Can't resume until closed.")
+            self.ui.grblSatus.setToolTip("Machine stopped. Door still ajar. Can't resume until closed.")
           elif D =="Door:2":
-            self.ui.lblEtat.setToolTip("Door opened. Hold (or parking retract) in-progress. Reset will throw an alarm.")
+            self.ui.grblSatus.setToolTip("Door opened. Hold (or parking retract) in-progress. Reset will throw an alarm.")
           elif D =="Door:3":
-            self.ui.lblEtat.setToolTip("Door closed and resuming. Restoring from park, if applicable. Reset will throw an alarm.")
+            self.ui.grblSatus.setToolTip("Door closed and resuming. Restoring from park, if applicable. Reset will throw an alarm.")
           else:
-            self.ui.lblEtat.setToolTip("")
+            self.ui.grblSatus.setToolTip("")
 
-      # Machine position MPos ($10=0 ou 2) ou WPos ($10=1 ou 3)?
+      # Machine position MPos ($10=1)
       elif D[:5] == "MPos:":
-        # Mémorise la dernière position machine reçue
-        tblPos = D[5:].split(",")
+        # Stores the last machine position received
+        tblPos = D[5:].split(",")    # D[5:] = 0.00, 0.00, 0.00, 0.00, 0.00
         for I in range(len(tblPos)):
           self.__mpos[I] = float(tblPos[I])
           self.__wpos[I] = float(tblPos[I]) - self.__wco[I]
-        # Met à jour l'interface
+        
+        # Updates the UI
         if not self.ui.mnu_MPos.isChecked():
           self.ui.mnu_MPos.setChecked(True)
         if self.ui.mnu_WPos.isChecked():
           self.ui.mnu_WPos.setChecked(False)
-        tblPos = D[5:].split(",")
-        self.ui.lblPosX.setText('{:+0.3f}'.format(float(tblPos[0]))); self.ui.lblPosX.setToolTip("Machine Position (MPos).")
-        self.ui.lblPosY.setText('{:+0.3f}'.format(float(tblPos[1]))); self.ui.lblPosY.setToolTip("Machine Position (MPos).")
-        self.ui.lblPosZ.setText('{:+0.3f}'.format(float(tblPos[2]))); self.ui.lblPosZ.setToolTip("Machine Position (MPos).")
-        if self.__nbAxis > 3:
-          self.ui.lblPosA.setText('{:+0.3f}'.format(float(tblPos[3]))); self.ui.lblPosA.setToolTip("Machine Position (MPos).")
-        else:
-          self.ui.lblPosA.setText("-")
-        if self.__nbAxis > 4:
-          self.ui.lblPosB.setText('{:+0.3f}'.format(float(tblPos[4]))); self.ui.lblPosB.setToolTip("Machine Position (MPos).")
-        else:
-          self.ui.lblPosB.setText("-")
-        if self.__nbAxis > 5:
-          self.ui.lblPosC.setText('{:+0.3f}'.format(float(tblPos[5]))); self.ui.lblPosB.setToolTip("Machine Position (MPos).")
-        else:
-          self.ui.lblPosC.setText("-")
 
+        self.ui.grblPos_1.setText('{:+0.3f}'.format(float(tblPos[0]))); self.ui.grblPos_1.setToolTip("Machine Position (MPos) q1.")
+        self.ui.grblPos_2.setText('{:+0.3f}'.format(float(tblPos[1]))); self.ui.grblPos_2.setToolTip("Machine Position (MPos) q2")
+        self.ui.grblPos_3.setText('{:+0.3f}'.format(float(tblPos[2]))); self.ui.grblPos_3.setToolTip("Machine Position (MPos) q3")
+        if self.__nbAxis > 3:
+          self.ui.grblPos_4.setText('{:+0.3f}'.format(float(tblPos[3]))); self.ui.grblPos_4.setToolTip("Machine Position (MPos) q4")
+        else:
+          self.ui.grblPos_4.setText("-")
+        if self.__nbAxis > 4:
+          self.ui.grblPos_5.setText('{:+0.3f}'.format(float(tblPos[4]))); self.ui.grblPos_5.setToolTip("Machine Position (MPos) q5")
+        else:
+          self.ui.grblPos_5.setText("-")
+        if self.__nbAxis > 5:
+          self.ui.grblPos_6.setText('{:+0.3f}'.format(float(tblPos[5]))); self.ui.grblPos_5.setToolTip("Machine Position (MPos) q6")
+        else:
+          self.ui.grblPos_6.setText("-")
+
+      # Work position WPos ($10=0)
       elif D[:5] == "WPos:":
-        # Mémorise la dernière position de travail reçue
+        # Stores the last received work position
         tblPos = D[5:].split(",")
         for I in range(len(tblPos)):
           self.__wpos[I] = float(tblPos[I])
           self.__mpos[I] = float(tblPos[I]) + self.__wco[I]
-        # Met à jour l'interface
+        
+        # Updates the UI
         if not self.ui.mnu_WPos.isChecked():
           self.ui.mnu_WPos.setChecked(True)
         if self.ui.mnu_MPos.isChecked():
           self.ui.mnu_MPos.setChecked(False)
-        tblPos = D[5:].split(",")
-        self.ui.lblPosX.setText('{:+0.3f}'.format(float(tblPos[0]))); self.ui.lblPosX.setToolTip("Working Position (WPos).")
-        self.ui.lblPosY.setText('{:+0.3f}'.format(float(tblPos[1]))); self.ui.lblPosY.setToolTip("Working Position (WPos).")
-        self.ui.lblPosZ.setText('{:+0.3f}'.format(float(tblPos[2]))); self.ui.lblPosZ.setToolTip("Working Position (WPos).")
+        
+        self.ui.grblPos_1.setText('{:+0.3f}'.format(float(tblPos[0]))); self.ui.grblPos_1.setToolTip("Working Position (WPos) w1")
+        self.ui.grblPos_2.setText('{:+0.3f}'.format(float(tblPos[1]))); self.ui.grblPos_2.setToolTip("Working Position (WPos) w2")
+        self.ui.grblPos_3.setText('{:+0.3f}'.format(float(tblPos[2]))); self.ui.grblPos_3.setToolTip("Working Position (WPos) w3")
         if self.__nbAxis > 3:
-          self.ui.lblPosA.setText('{:+0.3f}'.format(float(tblPos[3]))); self.ui.lblPosA.setToolTip("Working Position (WPos).")
+          self.ui.grblPos_4.setText('{:+0.3f}'.format(float(tblPos[3]))); self.ui.grblPos_4.setToolTip("Working Position (WPos) w4")
         else:
-          self.ui.lblPosA.setText("-")
+          self.ui.grblPos_4.setText("-")
         if self.__nbAxis > 4:
-          self.ui.lblPosB.setText('{:+0.3f}'.format(float(tblPos[4]))); self.ui.lblPosB.setToolTip("Working Position (WPos).")
+          self.ui.grblPos_5.setText('{:+0.3f}'.format(float(tblPos[4]))); self.ui.grblPos_5.setToolTip("Working Position (WPos) w5")
         else:
-          self.ui.lblPosB.setText("-")
+          self.ui.grblPos_5.setText("-")
         if self.__nbAxis > 5:
-          self.ui.lblPosC.setText('{:+0.3f}'.format(float(tblPos[5]))); self.ui.lblPosB.setToolTip("Working Position (WPos).")
+          self.ui.grblPos_6.setText('{:+0.3f}'.format(float(tblPos[5]))); self.ui.grblPos_5.setToolTip("Working Position (WPos) w6")
         else:
-          self.ui.lblPosC.setText("-")
+          self.ui.grblPos_6.setText("-")
 
       elif D[:4] == "WCO:": # Work Coordinate Offset
         tblPos = D[4:].split(",")
@@ -208,17 +208,17 @@ class grblDecode(QObject):
 
       elif D[:3] == "Ov:": # Override Values for feed, rapids, and spindle
         values = D.split(':')[1].split(',')
-        # Avance de travail
+        # Advance travel feed
         if int(self.ui.lblAvancePourcent.text()[:-1]) != int(values[0]):
           adjustFeedOverride(int(values[0]), int(self.ui.lblAvancePourcent.text()[:-1]), self.__grblCom)
-        # Avance rapide
+        # Advance rapid
         if values[1] == 25:
           self.ui.rbRapid025.setChecked(True)
         if values[1] == 50:
           self.ui.rbRapid050.setChecked(True)
         if values[1] == 25:
           self.ui.rbRapid100.setChecked(True)
-        # Ajuste la vitesse de broche
+        # Adjust spindle speed
         if int(self.ui.lblBrochePourcent.text()[:-1]) != int(values[2]):
           adjustSpindleOverride(int(values[2]), int(self.ui.lblBrochePourcent.text()[:-1]), self.__grblCom)
 
@@ -246,7 +246,7 @@ class grblDecode(QObject):
         return D
       '''
     if not flagPn:
-      # Eteint toute les leds. Si on a pas trouve la chaine Pn:, c'est que toute les leds sont eteintes.
+      # Turn off all the LEDs. If we have not found the Pn: chain, it means that all the LEDs are off.
       for L in ['X', 'Y', 'Z', 'A', 'B', 'C', 'P', 'D', 'H', 'R', 'S']:
         exec("self.ui.cnLed" + L + ".setLedStatus(False)")
 
@@ -432,31 +432,9 @@ class grblDecode(QObject):
               self.ui.btnSpinM4.setEnabled(True)
               if not self.ui.btnSpinM5.getButtonStatus(): self.ui.btnSpinM5.setButtonStatus(True)
           elif S in ['M7', 'M8', 'M78', 'M9']:
+            self.__etatArrosage = S
             self.ui.lblArrosage.setText(S)
-            if S == 'M7':
-              self.ui.lblArrosage.setToolTip(self.tr(" Arrosage par gouttelettes "))
-              if not self.ui.btnFloodM7.getButtonStatus(): self.ui.btnFloodM7.setButtonStatus(True)
-              if self.ui.btnFloodM8.getButtonStatus():     self.ui.btnFloodM8.setButtonStatus(False)
-              if self.ui.btnFloodM9.getButtonStatus():     self.ui.btnFloodM9.setButtonStatus(False)
-              self.__etatArrosage = "M7"
-            if S == 'M8':
-              self.ui.lblArrosage.setToolTip(self.tr(" Arrosage fluide "))
-              if self.ui.btnFloodM7.getButtonStatus():     self.ui.btnFloodM7.setButtonStatus(False)
-              if not self.ui.btnFloodM8.getButtonStatus(): self.ui.btnFloodM8.setButtonStatus(True)
-              if self.ui.btnFloodM9.getButtonStatus():     self.ui.btnFloodM9.setButtonStatus(False)
-              self.__etatArrosage = "M8"
-            if S == 'M78':
-              self.ui.lblArrosage.setToolTip(self.tr(" Arrosage goutelettes + fluide "))
-              if not self.ui.btnFloodM7.getButtonStatus(): self.ui.btnFloodM7.setButtonStatus(True)
-              if not self.ui.btnFloodM8.getButtonStatus(): self.ui.btnFloodM8.setButtonStatus(True)
-              if self.ui.btnFloodM9.getButtonStatus():     self.ui.btnFloodM9.setButtonStatus(False)
-              self.__etatArrosage = "M78"
-            if S == 'M9':
-              self.ui.lblArrosage.setToolTip(self.tr(" Arrosage arrete "))
-              if self.ui.btnFloodM7.getButtonStatus():     self.ui.btnFloodM7.setButtonStatus(False)
-              if self.ui.btnFloodM8.getButtonStatus():     self.ui.btnFloodM8.setButtonStatus(False)
-              if not self.ui.btnFloodM9.getButtonStatus(): self.ui.btnFloodM9.setButtonStatus(True)
-              self.__etatArrosage = "M9"
+            self.ui.lblArrosage.setToolTip(" Flood function is disabled in this program ")
           elif S[:1] == "T":
             self.ui.lblOutil.setText(S)
             self.ui.lblOutil.setToolTip(self.tr(" Outil numero {}").format(S[1:]))
@@ -467,7 +445,7 @@ class grblDecode(QObject):
             self.ui.lblAvance.setText(S)
             self.ui.lblAvance.setToolTip(self.tr(" Vitesse d'avance = ").format(S[1:]))
           else:
-            return(self.tr("Status G-code Parser non reconnu dans {} : {}").format(grblOutput, S))
+            return("Status G-code Parser not recognized in {} : {}".format(grblOutput, S))
         # renvoie le résultat si $G demandé dans par l'utilisateur
         if self.__getNextGCodeState:
           self.__getNextGCodeState = False
