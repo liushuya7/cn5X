@@ -104,39 +104,39 @@ class grblComSerial(QObject):
   @pyqtSlot(str)
   @pyqtSlot(str, object)
   def realTimePush(self, buff: str, flag = COM_FLAG_NO_FLAG):
-    ''' Ajout d'une commande GCode dans la pile en mode FiFo '''
+    ''' Addiing a GCode command in the realtime stack in FiFo mode '''
     self.__realTimeStack.addFiFo(buff, flag)
 
 
   @pyqtSlot(str)
   @pyqtSlot(str, object)
   def gcodePush(self, buff: str, flag = COM_FLAG_NO_FLAG):
-    ''' Ajout d'une commande GCode dans la pile en mode FiFo (fonctionnement normal de la pile d'un programe GCode) '''
+    ''' Adding a GCode command in the stack in FiFo mode (normal functioning of the stack of a GCode program) '''
     self.__mainStack.addFiFo(buff, flag)
 
 
   @pyqtSlot(str)
   @pyqtSlot(str, object)
   def gcodeInsert(self, buff: str, flag = COM_FLAG_NO_FLAG):
-    ''' Insertion d'une commande GCode dans la pile en mode LiFo (commandes devant passer devant les autres) '''
+    ''' Inserting a GCode command in the stack in LiFo mode (commands that must pass in front of the others) '''
     self.__mainStack.addLiFo(buff, flag)
 
 
   def __sendData(self, buff: str):
-    ''' Envoie des donnees sur le port serie '''
-    # Signal debug pour toutes les donnees envoyees
+    ''' Sends data on the serial port '''
+    # Debug signal for all data sent
     if buff[-1:] == "\n":
       self.sig_debug.emit(">>> " + buff[:-1] + "\\n")
     elif buff[-2:] == "\r\n":
       self.sig_debug.emit(">>> " + buff[:-2] + "\\r\\n")
     else:
       self.sig_debug.emit(">>> " + buff)
-    # Formatage du buffer a envoyer
+    # Formatting the buffer to send
     buffWrite = bytes(buff, sys.getdefaultencoding())
-    # Temps necessaire pour la com (millisecondes), arrondi a l'entier superieur
+    # Time required for com (milliseconds), rounded up
     tempNecessaire = ceil(1000 * len(buffWrite) * 8 / self.__baudRate)
-    timeout = 10 + (2 * tempNecessaire) # 2 fois le temps necessaire + 10 millisecondes
-    # Ecriture sur le port serie
+    timeout = 10 + (2 * tempNecessaire) # 2 times the time required + 10 milliseconds
+    # Writing on the serial port
     self.__comPort.write(buffWrite)
     self.sig_debug.emit("grblComSerial.__sendData(), T = {} : self.__comPort.waitForBytesWritten({})".format(time.time() * 1000, timeout))
     if self.__comPort.waitForBytesWritten(timeout):
@@ -180,14 +180,14 @@ class grblComSerial(QObject):
 
 
   def __openComPort(self):
-    ''' Ouverture du port serie et attente de la chaine d'initialisation en provenence de Grbl '''
+    ''' Opening of the serial port and waiting for the initialization chain from Grbl '''
 
     self.sig_debug.emit("grblComSerial.__openComPort(self)")
 
     openResetTime = 1500  # Time for sending soft reset if init string is not receive from Grbl
-    openMaxTime =   5000  # (ms) Timeout pour recevoir la reponse de Grbl apres ouverture du port = 5 secondes
+    openMaxTime =   5000  # (ms) Timeout to receive the response from Grbl after opening the port = 5 seconds
 
-    # Configuration du port
+    # Configuration port
     self.__comPort  = QSerialPort()
     self.__comPort.setPortName(self.__portName)
     self.__comPort.setBaudRate(self.__baudRate)
@@ -195,13 +195,13 @@ class grblComSerial(QObject):
     self.__comPort.setStopBits(QSerialPort.OneStop)
     self.__comPort.setParity(QSerialPort.NoParity)
 
-    # Ouverture du port
+    # Open the port
     RC = False
     try:
       RC = self.__comPort.open(QIODevice.ReadWrite)
     except OSError as err:
-      self.sig_log.emit(logSeverity.error.value, self.tr("grblComSerial : Erreur ouverture du port : {0}").format(err))
-      self.sig_debug.emit(self.tr("grblComSerial : Erreur ouverture du port : {0}").format(err))
+      self.sig_log.emit(logSeverity.error.value, self.tr("grblComSerial : Error openning port : {0}").format(err))
+      self.sig_debug.emit(self.tr("grblComSerial : Error openning the port: {0}").format(err))
       self.sig_connect.emit(False)
       return False
     except:
@@ -210,17 +210,17 @@ class grblComSerial(QObject):
       self.sig_connect.emit(False)
       return False
     if not RC:
-      self.sig_log.emit(logSeverity.error.value, self.tr("grblComSerial : Erreur a l'ouverture du port serie : err# = {0}").format(self.__comPort.error()))
-      self.sig_debug.emit(self.tr("grblComSerial : Erreur a l'ouverture du port serie : err# = {0}").format(self.__comPort.error()))
+      self.sig_log.emit(logSeverity.error.value, self.tr("grblComSerial : Error opening serial port : err# = {0}").format(self.__comPort.error()))
+      self.sig_debug.emit(self.tr("grblComSerial : Error opening serial port : err# = {0}").format(self.__comPort.error()))
       self.sig_connect.emit(False)
       return False
 
-    # Ouverture du port OK
+    # port opening OK
     self.sig_connect.emit(True)
-    self.sig_log.emit(logSeverity.info.value, self.tr("grblComSerial : comPort {} ouvert, RC = {}").format(self.__comPort.portName(), RC))
-    self.sig_debug.emit(self.tr("grblComSerial : comPort {} ouvert, RC = {}").format(self.__comPort.portName(), RC))
+    self.sig_log.emit(logSeverity.info.value, self.tr("grblComSerial : comPort {} opened, RC = {}").format(self.__comPort.portName(), RC))
+    self.sig_debug.emit(self.tr("grblComSerial : comPort {} opened, RC = {}").format(self.__comPort.portName(), RC))
 
-    # Attente initialisatoin Grbl
+    # Waiting for initialisation Grbl
     tReset = False
     tDebut = time.time() * 1000
     self.sig_debug.emit(self.tr("grblComSerial : Wait for Grbl init... T = {:0.0f} ms...").format(tDebut))
@@ -265,7 +265,7 @@ class grblComSerial(QObject):
         return True # On a bien recu la chaine d'initialisation de Grbl
 
   def __mainLoop(self):
-    ''' Boucle principale du composant : lectures / ecritures sur le port serie '''
+    ''' Communication main loop: reads / writes on the serial port '''
     flag = COM_FLAG_NO_FLAG
     while True:
       # On commence par vider la file d'attente des commandes temps reel
@@ -342,7 +342,7 @@ class grblComSerial(QObject):
 
 
   def run(self):
-    ''' Demarre la communication avec le port serie dans un thread separe '''
+    ''' Start communication with the serial port in a separate thread '''
 
     thread_name = QThread.currentThread().objectName()
     thread_id = int(QThread.currentThreadId())  # cast to int() is necessary

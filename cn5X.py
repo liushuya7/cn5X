@@ -27,7 +27,7 @@ import argparse
 from PyQt5 import QtCore, QtGui, QtWidgets, uic
 from PyQt5.QtCore import Qt, QCoreApplication, QObject, QThread, pyqtSignal, pyqtSlot, QModelIndex,  QItemSelectionModel, QFileInfo, QTranslator, QLocale, QSettings
 from PyQt5.QtGui import QKeySequence, QStandardItemModel, QStandardItem, QValidator
-from PyQt5.QtWidgets import QDialog, QAbstractItemView
+from PyQt5.QtWidgets import QDialog, QAbstractItemView, QHBoxLayout
 from PyQt5.QtSerialPort import QSerialPortInfo
 from cn5X_config import *
 from msgbox import *
@@ -37,12 +37,14 @@ from grblDecode import grblDecode
 from gcodeQLineEdit import gcodeQLineEdit
 from cnQPushButton import cnQPushButton
 from grblJog import grblJog
-from cn5X_gcodeFile import gcodeFile
+from myFile import gcodeFile, stlFile
 from grblConfig import grblConfig
 from cn5Xabout import cn5XAbout
 from xml.dom.minidom import parse, Node, Element
 
 import cn5X_rc
+
+from Viewer import Viewer
 
 self_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -84,6 +86,14 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     ui_mainwindow = os.path.join(self_dir, 'mainWindow.ui')
     self.ui = uic.loadUi(ui_mainwindow, self)
 
+    # connect frmVtk with viewer
+    self.vtk_viewer = Viewer(self.ui.frmVtk, self)
+    self.vtk_layout = QHBoxLayout()
+    self.vtk_layout.addWidget(self.vtk_viewer)
+    self.vtk_layout.setContentsMargins(0,0,0,0)
+    self.ui.frmVtk.setLayout(self.vtk_layout)
+    self.vtk_viewer.start()
+
     # Emergency button picture location
     self.btnEmergencyPictureLocation = ":/cn5X/images/btnEmergency.svg"
     self.btnEmergencyOffPictureLocation = ":/cn5X/images/btnEmergencyOff.svg"
@@ -98,7 +108,7 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     self.logDebug.document().setMaximumBlockCount(2000)
     self.ui.grpConsole.setCurrentIndex(2)  # active the 3rd tab
 
-    # >> LEARN gcodeFile
+    self.__stlFile = stlFile(self.vtk_viewer)
     self.__gcodeFile = gcodeFile(self.ui.gcodeTable)
     self.__gcodeFile.sig_log.connect(self.on_sig_log)
 
@@ -159,7 +169,8 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     self.ui.btnEmergency.pressed.connect(self.on_setEmergency)       # Emergency stop button events
     self.ui.cmbPort.currentIndexChanged.connect(self.on_cmbPort_changed) # A click on the item of the list will call the method 'on_cmbPort_changed'
 
-    self.ui.mnuBar.hovered.connect(self.on_mnuBar)     # Application menu routines connections
+    self.ui.mnuBar.hovered.connect(self.on_mnuBar)     # Application menu connections
+    self.ui.mnuAppOpenStl.triggered.connect(self.on_mnuAppOpenStl)
     self.ui.mnuAppOpenGcode.triggered.connect(self.on_mnuAppOpenGcode)
     self.ui.mnuAppSaveGcode.triggered.connect(self.on_mnuAppSaveGcode)
     self.ui.mnuAppSaveGcodeAs.triggered.connect(self.on_mnuAppSaveGcodeAs)
@@ -308,10 +319,10 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     else:
       m = msgBox(
                   title  = "Attention !",
-                  text   = "Aucun port de communication disponible !",
-                  info   = "{} n'a pas trouve de port serie permettant de communiquer avec grbl.".format(sys.argv[0]),
+                  text   = "No communication port available!",
+                  info   = "{} could not find a serial port to communicate with grbl.".format(sys.argv[0]),
                   icon   = msgIconList.Information,
-                  detail = "\nclass serialCom:\nL'appel de \"serial.tools.list_ports.comports()\" n'a renvoye aucun port.",
+                  detail = "\n class serialCom:\n The call to serial.tools.list_ports.comports()\n did not return any port.",
                   stdButton = msgButtonList.Close
                 )
       m.afficheMsg()
@@ -410,28 +421,42 @@ class GrblMainwindow(QtWidgets.QMainWindow):
       self.ui.mnu_WPos.setEnabled(False)
       self.ui.mnu_GrblConfig.setEnabled(False)
 
+  @pyqtSlot()
+  def on_mnuAppOpenStl(self):
+    # Displays the opening dialog
+    fileName = self.__stlFile.showFileOpen()
+    if fileName[0] != "":
+      self.setCursor(Qt.WaitCursor)
+      RC = self.__stlFile.readFile(fileName[0])
+      if RC:
+        self.setWindowTitle(APP_NAME + " - " + self.__stlFile.filePath())
+      else:
+        # Select the console tab so that the error message is displayed except in case of debug
+        if not self.ui.btnDebug.isChecked():
+          self.ui.grpConsole.setCurrentIndex(2)
+    # Restore mouse cursor
+    self.setCursor(Qt.ArrowCursor)
 
   @pyqtSlot()
   def on_mnuAppOpenGcode(self):
-    # Affiche la boite de dialogue d'ouverture
+    # Displays the opening dialog
     fileName = self.__gcodeFile.showFileOpen()
     if fileName[0] != "":
-      # Lecture du fichier
-      # Curseur sablier
+      # Reading the file
+      # Hourglass slider
       self.setCursor(Qt.WaitCursor)
       RC = self.__gcodeFile.readFile(fileName[0])
       if RC:
-        # Selectionne l'onglet du fichier sauf en cas de debug
+        # Select the file tab except in case of debug
         if not self.ui.btnDebug.isChecked():
           self.ui.grpConsole.setCurrentIndex(1)
-        self.setWindowTitle(APP_NAME + " - " + self.__gcodeFile.filePath())
       else:
-        # Selectionne l'onglet de la console pour que le message d'erreur s'affiche sauf en cas de debug
+        # Select the console tab so that the error message is displayed except in case of debug
         if not self.ui.btnDebug.isChecked():
           self.ui.grpConsole.setCurrentIndex(2)
-    # Active ou desactive les boutons de cycle
+    # Enables or disables the cycle buttons
     self.setEnableDisableGroups()
-    # Restore le curseur de souris
+    # Restore mouse cursor
     self.setCursor(Qt.ArrowCursor)
 
 

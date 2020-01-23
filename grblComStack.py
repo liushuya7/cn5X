@@ -26,9 +26,9 @@ from cn5X_config import *
 
 class grblStack():
   '''
-  Gestionnaire de file d'attente du port serie.
-  Stocke des couples (CommandeGrbl, flag), soit en mode FiFo (addFiFo()), soit en mode LiFo (addLiFo())
-  et les renvoie dans l'ordre choisi avec la fonction pop().
+  Serial port queue manager.
+  Stores couples (CommandGrbl, flag), either in FiFo mode (addFiFo ()), or in LiFo mode (addLiFo ())
+  and return them in the order chosen with the pop () function
   '''
 
   def __init__(self):
@@ -41,32 +41,27 @@ class grblStack():
     return len(self.__data)
 
   def addFiFo(self, item, flag = COM_FLAG_NO_FLAG):
-    ''' Ajoute un element en mode FiFO, l'element ajoute sera le dernier a sortir
-    '''
+    ''' Add an element in FiFO mode, the added element will be the last to exit '''
     self.__data.append((item, flag))
 
   def addLiFo(self, item, flag = COM_FLAG_NO_FLAG):
-    ''' Ajoute un element en mode LiFO, l'element ajoute sera le premier a sortir
-    '''
+    ''' Add an element in LiFO mode, the added element will be the first to exit '''
     self.__data.insert(0, (item, flag))
 
   def next(self):
-    ''' Renvoie le prochain element de la Queue sans depiler (le supprimer) ou None si la liste est vide.
-    '''
+    ''' Returns the next element of the Queue without depilating (deleting it) or None if the list is empty. '''
     if len(self.__data) > 0:
       return self.__data[0]
     else:
       return None
 
   def pop(self):
-    ''' Depile et renvoie le premier element de la liste ou None si la liste est vide.
-    '''
+    ''' Pop and return the first element of the list or None if the list is empty. '''
     if len(self.__data) > 0:
       return self.__data.pop(0)
     else:
       return None
 
   def clear(self):
-    ''' Vide toute la pile
-    '''
+    ''' Empty the entire stack '''
     self.__data.clear()
