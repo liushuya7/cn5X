@@ -24,6 +24,7 @@
 
 import sys, os, time
 import argparse
+
 from PyQt5 import QtCore, QtGui, QtWidgets, uic
 from PyQt5.QtCore import Qt, QCoreApplication, QObject, QThread, pyqtSignal, pyqtSlot, QModelIndex,  QItemSelectionModel, QFileInfo, QTranslator, QLocale, QSettings
 from PyQt5.QtGui import QKeySequence, QStandardItemModel, QStandardItem, QValidator
@@ -272,6 +273,12 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     self.ui.lblG57.customContextMenuRequested.connect(lambda: self.on_lblGXXContextMenu(4))
     self.ui.lblG58.customContextMenuRequested.connect(lambda: self.on_lblGXXContextMenu(5))
     self.ui.lblG59.customContextMenuRequested.connect(lambda: self.on_lblGXXContextMenu(6))
+
+    # Path Generation
+    self.ui.pushButton_delete_point.clicked.connect(self.deletePoint)
+    self.ui.pushButton_show_axis.clicked.connect(self.showAxis)
+    self.ui.pushButton_cut_vector.clicked.connect(self.find_cut_vector)
+
 
     #--------------------------------------------------------------------------------------
     # Parse arguments from the command line
@@ -1221,6 +1228,25 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     self.cMenu.addAction(uniteMM)
     self.cMenu.popup(QtGui.QCursor.pos())
 
+  # Path Generation
+  def deletePoint(self):
+    if len(self.vtk_viewer.points) > 0:
+      self.vtk_viewer.deleteLatestPoint()
+    else:
+      print("No points in the VTK viewer!")
+  
+  def showAxis(self):
+      self.vtk_viewer.to_show_axis = not self.vtk_viewer.to_show_axis
+      if self.vtk_viewer.to_show_axis:
+        print("showing axis")
+      else:
+        print("stop showing axis")
+  
+  def find_cut_vector(self):
+      if self.vtk_viewer.axis_vector:
+        self.vtk_viewer.findCuttingVectors()
+      else:
+        print("No axis vector!")
 
 """******************************************************************"""
 

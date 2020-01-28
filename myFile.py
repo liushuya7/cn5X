@@ -275,7 +275,7 @@ class stlFile(QObject):
     # Displays the opening dialog
     opt = QtWidgets.QFileDialog.Options()
     opt |= QtWidgets.QFileDialog.DontUseNativeDialog
-    fileName = QtWidgets.QFileDialog.getOpenFileName(None, "Open a STL file", "" ,"STL (*.stl)", options=opt)
+    fileName = QtWidgets.QFileDialog.getOpenFileName(None, "Open a STL file", "../ppmd_ws/src/PPMD/model" ,"STL (*.stl)", options=opt)
     return fileName
 
   def readFile(self, filePath: str):
