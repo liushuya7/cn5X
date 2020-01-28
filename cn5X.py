@@ -24,6 +24,7 @@
 
 import sys, os, time
 import argparse
+import csv
 
 from PyQt5 import QtCore, QtGui, QtWidgets, uic
 from PyQt5.QtCore import Qt, QCoreApplication, QObject, QThread, pyqtSignal, pyqtSlot, QModelIndex,  QItemSelectionModel, QFileInfo, QTranslator, QLocale, QSettings
@@ -278,7 +279,7 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     self.ui.pushButton_delete_point.clicked.connect(self.deletePoint)
     self.ui.pushButton_show_axis.clicked.connect(self.showAxis)
     self.ui.pushButton_cut_vector.clicked.connect(self.find_cut_vector)
-
+    self.ui.pushButton_save_path.clicked.connect(self.save_cut_path)
 
     #--------------------------------------------------------------------------------------
     # Parse arguments from the command line
@@ -1238,16 +1239,34 @@ class GrblMainwindow(QtWidgets.QMainWindow):
   def showAxis(self):
       self.vtk_viewer.to_show_axis = not self.vtk_viewer.to_show_axis
       if self.vtk_viewer.to_show_axis:
-        print("showing axis")
+        print("Showing axis")
       else:
-        print("stop showing axis")
+        print("Stop showing axis")
   
   def find_cut_vector(self):
       if self.vtk_viewer.axis_vector:
-        self.vtk_viewer.findCuttingVectors()
+        cut_angle = self.doubleSpinBox_angle.value()
+        self.vtk_viewer.findCuttingVectors(cut_angle)
       else:
         print("No axis vector!")
 
+  def save_cut_path(self):
+      if self.vtk_viewer.cut_path:
+        file_name = QtWidgets.QFileDialog.getSaveFileName(self, 'Save File', directory=self_dir, filter="CSV files (*.csv);;Text files (*.txt)")
+        if file_name != '':
+            file_name = file_name[0]
+            with open(file_name, 'wt') as stream:
+                writer = csv.writer(stream, lineterminator='\n')
+                # Get path from Viewer
+                cut_path = self.vtk_viewer.getCutPath()
+                # save cut path 
+                for path in cut_path:
+                    writer.writerow(path)
+            print("File saved!")
+        else:
+          print("No file name given!")
+      else:
+        print("No cut path!")
 """******************************************************************"""
 
 if __name__ == '__main__':

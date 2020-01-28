@@ -44,6 +44,7 @@ class Viewer(QFrame):
         self.to_show_axis = False
         self.axis_vector = None
         self.machine_center = None
+        self.cut_path = None
 
     def start(self):
         self.interactor.Initialize()
@@ -104,9 +105,9 @@ class Viewer(QFrame):
             self.points.append(actor)
             self.renderer.AddActor(actor)
 
-            # debug
-            actor_collection = self.renderer.GetActors()
-            print(actor_collection.GetNumberOfItems())
+            # # debug
+            # actor_collection = self.renderer.GetActors()
+            # print(actor_collection.GetNumberOfItems())
 
         else:
             print("not picking anything!")
@@ -150,36 +151,31 @@ class Viewer(QFrame):
         # numerator2 = 8*center[0]*np.cos(theta)**4*point[0]*vector[1]**2 + 8*center[0]*np.cos(theta)**4*point[0]*vector[2]**2 + 8*center[1]*np.cos(theta)**4*point[1]*vector[0]**2 + 8*center[1]*np.cos(theta)**4*point[1]*vector[2]**2 + 8*center[2]*np.cos(theta)**4*point[2]*vector[0]**2 + 8*center[2]*np.cos(theta)**4*point[2]*vector[1]**2 + 8*center[0]*center[1]*np.cos(theta)**4*vector[0]*vector[1] + 8*center[0]*center[2]*np.cos(theta)**4*vector[0]*vector[2] + 8*center[1]*center[2]*np.cos(theta)**4*vector[1]*vector[2] + 8*np.cos(theta)**4*point[0]*point[1]*vector[0]*vector[1] + 8*np.cos(theta)**4*point[0]*point[2]*vector[0]*vector[2] + 8*np.cos(theta)**4*point[1]*point[2]*vector[1]*vector[2] + 1
         numerator2 = 2*np.cos(theta)**2*point[0]*vector[0] + 2*np.cos(theta)**2*point[1]*vector[1] + 2*np.cos(theta)**2*point[2]*vector[2] - 2*center[0]*np.cos(theta)**2*vector[0] - 2*center[1]*np.cos(theta)**2*vector[1] - 2*center[2]*np.cos(theta)**2*vector[2] + 1
         denominator = 2*np.cos(theta)**2*(vector[0]**2 + vector[1]**2 + vector[2]**2)
-        print(numerator1)
-        print(numerator2)
-        print(denominator)
         condition = numerator1 > 0 and (denominator != 0)
         solu = None
         if condition:
             t1 = (np.sqrt(numerator1) + numerator2) /denominator
             t2 = (-np.sqrt(numerator1) + numerator2) /denominator
-            print("t1")
-            print(t1)
-            print("t2")
-            print(t2)
             solu = t1 if t1 < t2 else t2
         else:
             print("condition fails!")
         return solu
 
-    def findCuttingVectors(self):
-        theta = 30/180.0*np.pi
+    def findCuttingVectors(self, angle):
+        theta = angle/180.0*np.pi # angle (degree), theta (radian)
+        self.cut_path = []
         for point in self.points:
             bounds = point.GetBounds()
             pt = (bounds[0], bounds[2], bounds[4])
             t = self.solveCuttingVector(pt, self.machine_center, self.axis_vector, theta)
-            print(t)
             if t:
                 p = np.array(pt)
                 q = np.array(self.machine_center) + t*np.array((self.axis_vector))
                 vector = (q-p)/np.linalg.norm(q-p)
-                print(vector)
                 self.showAxis(pt, (vector[0], vector[1], vector[2]))
+                path = list(pt)
+                path.extend(vector.tolist())
+                self.cut_path.append(path)
 
     def showAxis(self, point, vector):
         # Create three points. Join (Origin and P0) with a red line and
@@ -240,6 +236,8 @@ class Viewer(QFrame):
         self.renderer.AddActor(actor)
         self.update()
 
+    def getCutPath(self):
+        return self.cut_path
 
     def update(self):
         self.renderer.GetRenderWindow().Render()

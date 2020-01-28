@@ -641,9 +641,33 @@
             </widget>
            </item>
            <item>
+            <widget class="QLabel" name="label_5">
+             <property name="text">
+              <string>Cut Angle (degree)</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="doubleSpinBox_angle">
+             <property name="maximum">
+              <double>180.000000000000000</double>
+             </property>
+             <property name="value">
+              <double>30.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item>
             <widget class="QPushButton" name="pushButton_cut_vector">
              <property name="text">
               <string>cut vector</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="pushButton_save_path">
+             <property name="text">
+              <string>save cut path</string>
              </property>
             </widget>
            </item>
