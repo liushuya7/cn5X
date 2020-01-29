@@ -433,8 +433,6 @@ class grblDecode(QObject):
               if not self.ui.btnSpinM5.getButtonStatus(): self.ui.btnSpinM5.setButtonStatus(True)
           elif S in ['M7', 'M8', 'M78', 'M9']:
             self.__etatArrosage = S
-            self.ui.lblArrosage.setText(S)
-            self.ui.lblArrosage.setToolTip(" Flood function is disabled in this program ")
           elif S[:1] == "T":
             self.ui.lblOutil.setText(S)
             self.ui.lblOutil.setToolTip(self.tr(" Outil numero {}").format(S[1:]))

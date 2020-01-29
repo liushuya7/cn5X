@@ -658,22 +658,22 @@ class GrblMainwindow(QtWidgets.QMainWindow):
 
     if jogDistance != 0:
       self.__jogModContinue = False
-      while cnButton.isMouseDown():  # on envoi qu'après avoir relâché le bouton
+      while cnButton.isMouseDown():  # send only after releasing the button
         # Process events to receive signals;
         QCoreApplication.processEvents()
-      # envoi de l'ordre jog
+      # sending the jog command
       self.__jog.on_jog(cnButton, e, jogDistance)
 
     else:  # jogDistance == 0
       self.__jogModContinue = True
-      # Recherche la course max de l'axe considéré
-      axis = cnButton.name()[-1]   # L'axe est definit par le dernier caractere du nom du Bouton
+      # Finds the max stroke of the considered axis
+      axis = cnButton.name()[-1]   # The axis is defined by the last character of the Button name
       maxTravel = 0
       for I in range(self.__nbAxis):
         if axis == self.__axisNames[I]:
           maxTravel = self.__maxTravel[I]
           break
-      # envoi de l'ordre jog
+      # sending the jog command
       self.__jog.on_jog(cnButton, e, jogDistance, maxTravel)
 
 
