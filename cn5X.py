@@ -24,6 +24,8 @@
 
 import sys, os, time
 import argparse
+import csv
+
 from PyQt5 import QtCore, QtGui, QtWidgets, uic
 from PyQt5.QtCore import Qt, QCoreApplication, QObject, QThread, pyqtSignal, pyqtSlot, QModelIndex,  QItemSelectionModel, QFileInfo, QTranslator, QLocale, QSettings
 from PyQt5.QtGui import QKeySequence, QStandardItemModel, QStandardItem, QValidator
@@ -272,6 +274,12 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     self.ui.lblG57.customContextMenuRequested.connect(lambda: self.on_lblGXXContextMenu(4))
     self.ui.lblG58.customContextMenuRequested.connect(lambda: self.on_lblGXXContextMenu(5))
     self.ui.lblG59.customContextMenuRequested.connect(lambda: self.on_lblGXXContextMenu(6))
+
+    # Path Generation
+    self.ui.pushButton_delete_point.clicked.connect(self.deletePoint)
+    self.ui.pushButton_show_axis.clicked.connect(self.showAxis)
+    self.ui.pushButton_cut_vector.clicked.connect(self.find_cut_vector)
+    self.ui.pushButton_save_path.clicked.connect(self.save_cut_path)
 
     #--------------------------------------------------------------------------------------
     # Parse arguments from the command line
@@ -1221,7 +1229,44 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     self.cMenu.addAction(uniteMM)
     self.cMenu.popup(QtGui.QCursor.pos())
 
+  # Path Generation
+  def deletePoint(self):
+    if len(self.vtk_viewer.points) > 0:
+      self.vtk_viewer.deleteLatestPoint()
+    else:
+      print("No points in the VTK viewer!")
+  
+  def showAxis(self):
+      self.vtk_viewer.to_show_axis = not self.vtk_viewer.to_show_axis
+      if self.vtk_viewer.to_show_axis:
+        print("Showing axis")
+      else:
+        print("Stop showing axis")
+  
+  def find_cut_vector(self):
+      if self.vtk_viewer.axis_vector:
+        cut_angle = self.doubleSpinBox_angle.value()
+        self.vtk_viewer.findCuttingVectors(cut_angle)
+      else:
+        print("No axis vector!")
 
+  def save_cut_path(self):
+      if self.vtk_viewer.cut_path:
+        file_name = QtWidgets.QFileDialog.getSaveFileName(self, 'Save File', directory=self_dir, filter="CSV files (*.csv);;Text files (*.txt)")
+        if file_name != '':
+            file_name = file_name[0]
+            with open(file_name, 'wt') as stream:
+                writer = csv.writer(stream, lineterminator='\n')
+                # Get path from Viewer
+                cut_path = self.vtk_viewer.getCutPath()
+                # save cut path 
+                for path in cut_path:
+                    writer.writerow(path)
+            print("File saved!")
+        else:
+          print("No file name given!")
+      else:
+        print("No cut path!")
 """******************************************************************"""
 
 if __name__ == '__main__':
