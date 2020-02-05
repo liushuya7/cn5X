@@ -26,6 +26,8 @@ import sys, os, time
 import argparse
 import csv
 
+sys.path.insert(0, os.path.abspath('lib')) # add lib folder
+
 from PyQt5 import QtCore, QtGui, QtWidgets, uic
 from PyQt5.QtCore import Qt, QCoreApplication, QObject, QThread, pyqtSignal, pyqtSlot, QModelIndex,  QItemSelectionModel, QFileInfo, QTranslator, QLocale, QSettings
 from PyQt5.QtGui import QKeySequence, QStandardItemModel, QStandardItem, QValidator
@@ -85,7 +87,7 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     self.__licenceFile = "{}/COPYING".format(dir_)
 
     # Initialize the main window
-    ui_mainwindow = os.path.join(self_dir, 'mainWindow.ui')
+    ui_mainwindow = os.path.join(self_dir, 'ui/mainWindow.ui')
     self.ui = uic.loadUi(ui_mainwindow, self)
 
     # connect frmVtk with viewer
