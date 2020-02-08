@@ -277,6 +277,11 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     self.ui.lblG58.customContextMenuRequested.connect(lambda: self.on_lblGXXContextMenu(5))
     self.ui.lblG59.customContextMenuRequested.connect(lambda: self.on_lblGXXContextMenu(6))
 
+    # Laser test
+    self.ui.verticalSlider_laser_test.valueChanged.connect(self.updateTestLaserPower)
+    self.ui.pushButton_laser_test.pressed.connect(lambda: self.__grblCom.gcodePush("S{}".format(self.ui.doubleSpinBox_laser_test.value())))
+    self.ui.pushButton_laser_test.released.connect(lambda: self.__grblCom.gcodePush("S0"))
+
     # Path Generation
     self.ui.pushButton_delete_point.clicked.connect(self.deletePoint)
     self.ui.pushButton_show_axis.clicked.connect(self.showAxis)
@@ -692,18 +697,21 @@ class GrblMainwindow(QtWidgets.QMainWindow):
 
   @pyqtSlot()
   def on_btnSpinM3(self):
+    self.__grblCom.gcodeInsert("G1 F{}".format(self.ui.dsbJogSpeed.value()))
     self.__grblCom.gcodeInsert("M3")
     self.ui.btnSpinM4.setEnabled(False) # Interdit un changement de sens de rotation direct
 
 
   @pyqtSlot()
   def on_btnSpinM4(self):
+    self.__grblCom.gcodeInsert("G1 F{}".format(self.ui.dsbJogSpeed.value()))
     self.__grblCom.gcodeInsert("M4")
     self.ui.btnSpinM3.setEnabled(False) # Interdit un changement de sens de rotation direct
 
 
   @pyqtSlot()
   def on_btnSpinM5(self):
+    self.__grblCom.gcodeInsert("G0 F0")
     self.__grblCom.gcodeInsert("M5")
     self.ui.btnSpinM3.setEnabled(True)
     self.ui.btnSpinM4.setEnabled(True)
@@ -1230,6 +1238,10 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     uniteMM.triggered.connect(lambda: self.__grblCom.gcodePush("G91"))
     self.cMenu.addAction(uniteMM)
     self.cMenu.popup(QtGui.QCursor.pos())
+
+  # Laser test
+  def updateTestLaserPower(self, slider_value):
+    self.ui.doubleSpinBox_laser_test.setValue(slider_value/10.0)
 
   # Path Generation
   def deletePoint(self):
