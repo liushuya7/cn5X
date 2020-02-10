@@ -33,7 +33,7 @@ class Viewer(QFrame):
         self.interactor = interactor
         self.render_window = render_window
 
-        # Set up picker (ray-np.cos(theta)sting)
+        # Set up picker (ray-casting)
         self.picker_tag_id = None
         self.points = []
         self.picker = vtk.vtkCellPicker()
@@ -108,6 +108,13 @@ class Viewer(QFrame):
             # # debug
             # actor_collection = self.renderer.GetActors()
             # print(actor_collection.GetNumberOfItems())
+            if self.Qmaster.registrationLoaded:
+                # add picked points to table in RegistrationDialog
+                rowPosition = self.Qmaster.registration_dialog.tableWidget_model.rowCount()
+                self.Qmaster.registration_dialog.tableWidget_model.insertRow(rowPosition)
+                self.Qmaster.registration_dialog.tableWidget_model.setItem(rowPosition, 0, QtGui.QTableWidgetItem(str(picked_point[0])))
+                self.Qmaster.registration_dialog.tableWidget_model.setItem(rowPosition, 1, QtGui.QTableWidgetItem(str(picked_point[1])))
+                self.Qmaster.registration_dialog.tableWidget_model.setItem(rowPosition, 2, QtGui.QTableWidgetItem(str(picked_point[2])))
 
         else:
             print("not picking anything!")

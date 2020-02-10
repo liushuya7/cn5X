@@ -43,6 +43,7 @@ from cnQPushButton import cnQPushButton
 from grblJog import grblJog
 from myFile import gcodeFile, stlFile
 from grblConfig import grblConfig
+from RegistrationDialog import RegistrationDialog
 from cn5Xabout import cn5XAbout
 from xml.dom.minidom import parse, Node, Element
 
@@ -120,7 +121,6 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     self.__grblCom.sig_log.connect(self.on_sig_log)
     self.__grblCom.sig_connect.connect(self.on_sig_connect)
     self.__grblCom.sig_init.connect(self.on_sig_init)
-    self.__grblCom.sig_ok.connect(self.on_sig_ok)
     self.__grblCom.sig_error.connect(self.on_sig_error)
     self.__grblCom.sig_alarm.connect(self.on_sig_alarm)
     self.__grblCom.sig_status.connect(self.on_sig_status)
@@ -182,6 +182,7 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     self.ui.mnuAppQuit.triggered.connect(self.on_mnuAppQuit)
 
     self.ui.mnu_GrblConfig.triggered.connect(self.on_mnu_GrblConfig)
+    self.ui.actionRegistration.triggered.connect(self.on_mnu_ImplantRegistration)
     self.ui.mnu_MPos.triggered.connect(self.on_mnu_MPos)
     self.ui.mnu_WPos.triggered.connect(self.on_mnu_WPos)
     self.ui.mnuDebug_mode.triggered.connect(self.on_mnuDebug_mode)
@@ -431,10 +432,12 @@ class GrblMainwindow(QtWidgets.QMainWindow):
         self.ui.mnu_GrblConfig.setEnabled(True)
       else:
         self.ui.mnu_GrblConfig.setEnabled(False)
+      self.ui.registration.setEnabled(True)
     else:
       self.ui.mnu_MPos.setEnabled(False)
       self.ui.mnu_WPos.setEnabled(False)
       self.ui.mnu_GrblConfig.setEnabled(False)
+      self.ui.registration.setEnabled(False)
 
   @pyqtSlot()
   def on_mnuAppOpenStl(self):
@@ -535,10 +538,15 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     # Refreshed the config
     self.__grblCom.gcodeInsert(CMD_GRBL_GET_SETTINGS)
 
+
   @pyqtSlot()
-  def on_mnu_ImplantRegistraion(self):
+  def on_mnu_ImplantRegistration(self):
     ''' Implant registration dialog'''
-    
+    self.registrationLoaded = True
+    self.registration_dialog = RegistrationDialog(self.__grblCom)
+    # dlgConfig.setParent(self)
+    # dlgConfig.showDialog()
+    # self.__registrationLoaded = False 
 
 
   @pyqtSlot(str)
@@ -828,11 +836,6 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     if not self.__firstGetSettings:
       self.__grblCom.gcodeInsert(CMD_GRBL_GET_SETTINGS)
       self.__firstGetSettings = True
-
-
-  @pyqtSlot()
-  def on_sig_ok(self):
-    self.logGrbl.append("ok")
 
 
   @pyqtSlot(int)

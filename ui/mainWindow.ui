@@ -672,6 +672,13 @@
             </widget>
            </item>
            <item>
+            <widget class="QPushButton" name="pushButton_delete_all">
+             <property name="text">
+              <string>delete all</string>
+             </property>
+            </widget>
+           </item>
+           <item>
             <spacer name="verticalSpacer">
              <property name="orientation">
               <enum>Qt::Vertical</enum>
@@ -4605,8 +4612,15 @@ background-image: url(:/cn5X/images/laser_test.png);</string>
     </property>
     <addaction name="mnuA_propos"/>
    </widget>
+   <widget class="QMenu" name="menuFunction">
+    <property name="title">
+     <string>Function</string>
+    </property>
+    <addaction name="actionRegistration"/>
+   </widget>
    <addaction name="mnuApplication"/>
    <addaction name="menuMachine"/>
+   <addaction name="menuFunction"/>
    <addaction name="menuAide"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
@@ -4684,6 +4698,11 @@ background-image: url(:/cn5X/images/laser_test.png);</string>
    </property>
    <property name="toolTip">
     <string>Open STL File</string>
+   </property>
+  </action>
+  <action name="actionRegistration">
+   <property name="text">
+    <string>Registration</string>
    </property>
   </action>
  </widget>

@@ -442,6 +442,8 @@ class grblDecode(QObject):
           elif S[:1] == "F":
             self.ui.lblAvance.setText(S)
             self.ui.lblAvance.setToolTip(self.tr(" Vitesse d'avance = ").format(S[1:]))
+          elif S == 'G38.2':
+            pass
           else:
             return("Status G-code Parser not recognized in {} : {}".format(grblOutput, S))
         # renvoie le résultat si $G demandé dans par l'utilisateur
