@@ -171,7 +171,7 @@ class RegistrationDialog(QDialog):
     def on_sig_status(self, data: str):
         tblDecode = data[1:-1].split("|") # first remove the "< ... >" brackets, then split by "|"
         for D in tblDecode:
-            if D[:5] == "WPos:":
+            if D[:5] == "MPos:" and self.is_probing:
                 tblPos = D[5:].split(",")
                 self.x = float(tblPos[0])
                 self.y = float(tblPos[1])
@@ -179,6 +179,7 @@ class RegistrationDialog(QDialog):
 
     @pyqtSlot()
     def on_sig_ok(self):
+        # print("OK")
         if self.is_probing:
             # self.reg_pts.append([x,y,z])
             rowPosition = self.tableWidget_world.rowCount()
@@ -188,7 +189,6 @@ class RegistrationDialog(QDialog):
             self.tableWidget_world.setItem(rowPosition, 2, QTableWidgetItem(str(self.z)))
 
             self.__grblCom.gcodePush("G0 Z0")
-
         self.is_probing = False
 
     @pyqtSlot()
