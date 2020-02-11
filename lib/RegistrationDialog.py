@@ -185,6 +185,7 @@ class RegistrationDialog(QDialog):
                 tblPos = D[5:].split(",")
                 for i in range(5):
                     self.joints[i] = float(tblPos[i])
+                print(self.joints)
                 # self.x = float(tblPos[0])
                 # self.y = float(tblPos[1])
                 # self.z = float(tblPos[2])
@@ -195,7 +196,8 @@ class RegistrationDialog(QDialog):
         if self.is_probing:
             # self.reg_pts.append([x,y,z])
             # do forward kinematics
-            tf_W_T = self.robot.fwd_kin(self.joints[0], self.joints[1], self.joints[2], self.joints[3], self.joints[4])
+            tf_W_T = self.robot.fwd_kin(self.joints[0] + self.robot.offset_sensor[0], self.joints[1]+ self.robot.offset_sensor[1], self.joints[2] + self.robot.offset_sensor[2], self.joints[3], self.joints[4])
+            print(tf_W_T)
             self.x = tf_W_T[0,3]
             self.y = tf_W_T[1,3]
             self.z = tf_W_T[2,3]

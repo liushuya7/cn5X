@@ -4,12 +4,12 @@ class CNC_5dof:
 
   def __init__(self):
     print("Initializing CNC_5dof")
-    self.offset_sensor = 
+    self.offset_sensor = [30, 5, 0]
     self.Lx = 100
-    self.Ly = 200
+    self.Ly = -200
     self.Lz = 280
-    self.h = 80
-    self.l = 160
+    self.h = -80
+    self.l = -160
 
   def fwd_kin(self, d1, d2, d3, theta4, theta5):
     """
@@ -24,25 +24,25 @@ class CNC_5dof:
     Returns:
     """
     print("Calculating forward kinematics")
-    tf_T_L = np.array( [ [-1,0,0,-d3], [0,1,0,-d2], [0,0,-1,-d1], [0,0,0,1]] )
+    tf_T_L = np.array( [ [-1,0,0,-d3], [0,1,0,-d2], [0,0,-1,-d1], [0,0,0,1]] ).astype(np.float)
     tf_L_O = np.array( [ [1,0,0,self.Lx],
                          [0,1,0,self.Ly],
                          [0,0,1,self.Lz + self.h],
-                         [0,0,0,1]] )
+                         [0,0,0,1]] ).astype(np.float)
 
     tf_1 = np.array( [ [1,0,0,0],
                        [0,np.cos(theta4),-np.sin(theta4),0],
                        [0,np.sin(theta4),np.cos(theta4),0],
-                       [0,0,0,1]] )
-    tf_2 = np.array( [ [1,0,0,0], [0,1,0,0], [0,0,1,self.l], [0,0,0,1]] )
+                       [0,0,0,1]] ).astype(np.float)
+    tf_2 = np.array( [ [1,0,0,0], [0,1,0,0], [0,0,1,self.l], [0,0,0,1]] ).astype(np.float)
     tf_3 = np.array( [ [np.cos(theta5),-np.sin(theta5),0,0],
                        [np.sin(theta5),np.cos(theta5),0,0],
                        [0,0,1,0],
-                       [0,0,0,1]] )
-    tf_O_W = tf_1 * tf_2 * tf_3
+                       [0,0,0,1]] ).astype(np.float)
+    tf_O_W = np.matmul(np.matmul(tf_1, tf_2), tf_3)
 
-    tf_T_W = tf_T_L * tf_L_O * tf_O_W
-    tf_W_T = -tf_T_W[0:3,0:3].T * tf_T_W[0:3,3]
+    tf_T_W = np.matmul(np.matmul(tf_T_L, tf_L_O), tf_O_W)
+    tf_W_T = np.linalg.inv(tf_T_W) 
 
     return tf_W_T
 
