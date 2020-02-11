@@ -286,8 +286,12 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     # Path Generation
     self.ui.pushButton_delete_point.clicked.connect(self.deletePoint)
     self.ui.pushButton_show_axis.clicked.connect(self.showAxis)
-    self.ui.pushButton_cut_vector.clicked.connect(self.find_cut_vector)
-    self.ui.pushButton_save_path.clicked.connect(self.save_cut_path)
+    self.ui.pushButton_cut_vector.clicked.connect(self.findCutVector)
+    self.ui.pushButton_save_path.clicked.connect(self.saveCutPath)
+    self.ui.pushButton_delete_all.clicked.connect(self.deleteAll)
+
+    # Registration
+    self.registration_dialog = None
 
     #--------------------------------------------------------------------------------------
     # Parse arguments from the command line
@@ -542,12 +546,7 @@ class GrblMainwindow(QtWidgets.QMainWindow):
   @pyqtSlot()
   def on_mnu_ImplantRegistration(self):
     ''' Implant registration dialog'''
-    self.registrationLoaded = True
-    self.registration_dialog = RegistrationDialog(self.__grblCom)
-    # dlgConfig.setParent(self)
-    # dlgConfig.showDialog()
-    # self.__registrationLoaded = False 
-
+    self.registration_dialog = RegistrationDialog(self.__grblCom, viewer = self.vtk_viewer)
 
   @pyqtSlot(str)
   def on_sig_config_changed(self, data: str):
@@ -1260,14 +1259,14 @@ class GrblMainwindow(QtWidgets.QMainWindow):
       else:
         print("Stop showing axis")
   
-  def find_cut_vector(self):
+  def findCutVector(self):
       if self.vtk_viewer.axis_vector:
         cut_angle = self.doubleSpinBox_angle.value()
         self.vtk_viewer.findCuttingVectors(cut_angle)
       else:
         print("No axis vector!")
 
-  def save_cut_path(self):
+  def saveCutPath(self):
       if self.vtk_viewer.cut_path:
         file_name = QtWidgets.QFileDialog.getSaveFileName(self, 'Save File', directory=self_dir, filter="CSV files (*.csv);;Text files (*.txt)")
         if file_name != '':
@@ -1284,6 +1283,10 @@ class GrblMainwindow(QtWidgets.QMainWindow):
           print("No file name given!")
       else:
         print("No cut path!")
+
+  def deleteAll(self):
+      self.vtk_viewer.deleteAllPoints()
+
 """******************************************************************"""
 
 if __name__ == '__main__':
