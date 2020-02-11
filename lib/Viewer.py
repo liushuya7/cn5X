@@ -108,16 +108,21 @@ class Viewer(QFrame):
             # # debug
             # actor_collection = self.renderer.GetActors()
             # print(actor_collection.GetNumberOfItems())
-            if self.Qmaster.registrationLoaded:
+            if self.Qmaster.registration_dialog and self.Qmaster.registration_dialog.is_loaded:
                 # add picked points to table in RegistrationDialog
-                rowPosition = self.Qmaster.registration_dialog.tableWidget_model.rowCount()
-                self.Qmaster.registration_dialog.tableWidget_model.insertRow(rowPosition)
-                self.Qmaster.registration_dialog.tableWidget_model.setItem(rowPosition, 0, QtGui.QTableWidgetItem(str(picked_point[0])))
-                self.Qmaster.registration_dialog.tableWidget_model.setItem(rowPosition, 1, QtGui.QTableWidgetItem(str(picked_point[1])))
-                self.Qmaster.registration_dialog.tableWidget_model.setItem(rowPosition, 2, QtGui.QTableWidgetItem(str(picked_point[2])))
+                self.addPointToTable(picked_point)
+            else:
+                print("registration not loaded")
 
         else:
             print("not picking anything!")
+
+    def addPointToTable(self, picked_point):
+        rowPosition = self.Qmaster.registration_dialog.tableWidget_model.rowCount()
+        self.Qmaster.registration_dialog.tableWidget_model.insertRow(rowPosition)
+        self.Qmaster.registration_dialog.tableWidget_model.setItem(rowPosition, 0, QTableWidgetItem(str(picked_point[0])))
+        self.Qmaster.registration_dialog.tableWidget_model.setItem(rowPosition, 1, QTableWidgetItem(str(picked_point[1])))
+        self.Qmaster.registration_dialog.tableWidget_model.setItem(rowPosition, 2, QTableWidgetItem(str(picked_point[2])))
 
     def clickToPick(self, object, event):
         x, y = object.GetEventPosition()
@@ -141,10 +146,17 @@ class Viewer(QFrame):
         self.renderer.RemoveActor(self.points[point_id])
         del self.points[point_id]
         self.update()
+    
+    def deleteAllPoints(self):
+
+        for point in self.points:
+            self.renderer.RemoveActor(point)
+        self.points.clear()
+        self.update()
+        print("delete all points")
 
 
     def magnifyPoint(self, current, previous):
-        print("row selected")
         self.points[current.row()].GetProperty().SetPointSize(POINT_SIZE * MAGNIFY_RATIO)
         if previous:
             self.points[previous.row()].GetProperty().SetPointSize(POINT_SIZE)

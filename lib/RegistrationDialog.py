@@ -11,7 +11,6 @@ from qweditmask import qwEditMask
 # Registration
 import vtk
 import numpy as np
-from Viewer import Viewer
 
 from compilOptions import grblCompilOptions
 
@@ -91,10 +90,12 @@ class Registration():
 class RegistrationDialog(QDialog):
     ''' Registration dialog '''
 
-    def __init__(self, grbl: grblCom):
+    def __init__(self, grbl: grblCom, viewer=None):
         super().__init__()
         ui_dlgRegistration = os.path.join(self_dir, '../ui/registration.ui')
         self.__di = uic.loadUi(ui_dlgRegistration, self)
+        self.is_loaded = True
+        self.viewer = viewer
 
         self.__grblCom = grbl
         self.__grblCom.sig_alarm.connect(self.on_sig_alarm)
@@ -103,11 +104,16 @@ class RegistrationDialog(QDialog):
         self.is_probing = False
 
         self.__di.pushButton_collect.clicked.connect(self.on_sig_probe)
+        self.__di.pushButton_delete_selected_model_points.pressed.connect(self.deleteSelectedModelPoint)
+        self.__di.pushButton_delete_selected_world_points.pressed.connect(self.deleteSelectedWorldPoint)
+        self.__di.pushButton_undo.pressed.connect(self.undoModel)
+        self.__di.tableWidget_model.currentItemChanged.connect(self.magnifyItem)
 
         self.x = 0
         self.y = 0
         self.z = 0
 
+        self.finished.connect(self.closeWindow)
         self.show()
 
     def undoModel(self):
@@ -117,27 +123,23 @@ class RegistrationDialog(QDialog):
         self.tableWidget_model.removeRow(rowPosition - 1)
 
         # delete point in renderer
-        self.vtk_widget.delete_latest_point()
+        self.viewer.deleteLatestPoint()
 
     def magnifyItem(self, current, previous):
-        print("magnify triggered!!!!!!!!!")
-        self.vtk_widget.magnify_point(current, previous)
-        print("items")
-        print(current)
-        print(previous)
+        self.viewer.magnifyPoint(current, previous)
+        self.tableWidget_model.setCurrentItem(current)
 
     def deleteSelectedTablePoint(self, table):
         current_row = table.currentRow()
         table.removeRow(current_row)
+        return current_row
 
     def deleteSelectedWorldPoint(self):
-        self.deleteSelectedTablePoint(self.tableWidget_world)
+        current_row = self.deleteSelectedTablePoint(self.tableWidget_world)
 
     def deleteSelectedModelPoint(self):
-        current_row = self.tableWidget_model.currentRow()
-        # self.tableWidget_model.removeRow(current_row)
-        self.deleteSelectedTablePoint(self.tableWidget_model)
-        self.vtk_widget.delete_selected_point(current_row)
+        current_row = self.deleteSelectedTablePoint(self.tableWidget_model)
+        self.viewer.deleteSelectedPoint(current_row)
 
     def register(self):
         # get source points and target points from tablewidget_world and tablewidget_model 
@@ -195,3 +197,7 @@ class RegistrationDialog(QDialog):
     def on_sig_probe(self):
         self.__grblCom.gcodePush("G38.2 Z-{}".format(self.__di.doubleSpinBox_probe_limit.value()))
         self.is_probing = True
+
+    def closeWindow(self):
+        self.is_loaded = not self.is_loaded
+        self.viewer.deleteAllPoints()
