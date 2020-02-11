@@ -11,6 +11,7 @@ from qweditmask import qwEditMask
 # Registration
 import vtk
 import numpy as np
+from robot_kins import CNC_5dof
 
 from compilOptions import grblCompilOptions
 
@@ -94,6 +95,11 @@ class RegistrationDialog(QDialog):
         super().__init__()
         ui_dlgRegistration = os.path.join(self_dir, '../ui/registration.ui')
         self.__di = uic.loadUi(ui_dlgRegistration, self)
+         # change table header names
+        self.table_healder = ['x','y','z']
+        self.tableWidget_model.setHorizontalHeaderLabels(self.table_healder)
+        self.tableWidget_world.setHorizontalHeaderLabels(self.table_healder)
+
         self.is_loaded = True
         self.viewer = viewer
 
@@ -109,9 +115,11 @@ class RegistrationDialog(QDialog):
         self.__di.pushButton_undo.pressed.connect(self.undoModel)
         self.__di.tableWidget_model.currentItemChanged.connect(self.magnifyItem)
 
+        self.robot = CNC_5dof()
         self.x = 0
         self.y = 0
         self.z = 0
+        self.joints = np.zeros((5,1))
 
         self.finished.connect(self.closeWindow)
         self.show()
@@ -175,15 +183,22 @@ class RegistrationDialog(QDialog):
         for D in tblDecode:
             if D[:5] == "MPos:" and self.is_probing:
                 tblPos = D[5:].split(",")
-                self.x = float(tblPos[0])
-                self.y = float(tblPos[1])
-                self.z = float(tblPos[2])
+                for i in range(5):
+                    self.joints[i] = float(tblPos[i])
+                # self.x = float(tblPos[0])
+                # self.y = float(tblPos[1])
+                # self.z = float(tblPos[2])
 
     @pyqtSlot()
     def on_sig_ok(self):
         # print("OK")
         if self.is_probing:
             # self.reg_pts.append([x,y,z])
+            # do forward kinematics
+            tf_W_T = self.robot.fwd_kin(self.joints[0], self.joints[1], self.joints[2], self.joints[3], self.joints[4])
+            self.x = tf_W_T[0,3]
+            self.y = tf_W_T[1,3]
+            self.z = tf_W_T[2,3]
             rowPosition = self.tableWidget_world.rowCount()
             self.tableWidget_world.insertRow(rowPosition)
             self.tableWidget_world.setItem(rowPosition, 0, QTableWidgetItem(str(self.x)))

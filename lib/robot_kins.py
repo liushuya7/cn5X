@@ -4,11 +4,12 @@ class CNC_5dof:
 
   def __init__(self):
     print("Initializing CNC_5dof")
-    self.Lx = 0
-    self.Ly = 0
-    self.Lz = 0
-    self.h = 0
-    self.l = 0
+    self.offset_sensor = 
+    self.Lx = 100
+    self.Ly = 200
+    self.Lz = 280
+    self.h = 80
+    self.l = 160
 
   def fwd_kin(self, d1, d2, d3, theta4, theta5):
     """
@@ -30,18 +31,20 @@ class CNC_5dof:
                          [0,0,0,1]] )
 
     tf_1 = np.array( [ [1,0,0,0],
-                       [0,cos(theta4),-sin(theta4),0],
-                       [0,sin(theta4),cos(theta4),0],
+                       [0,np.cos(theta4),-np.sin(theta4),0],
+                       [0,np.sin(theta4),np.cos(theta4),0],
                        [0,0,0,1]] )
     tf_2 = np.array( [ [1,0,0,0], [0,1,0,0], [0,0,1,self.l], [0,0,0,1]] )
-    tf_3 = np.array( [ [cos(theta5),-sin(theta5),0,0],
-                       [sin(theta5),cos(theta5),0,0],
+    tf_3 = np.array( [ [np.cos(theta5),-np.sin(theta5),0,0],
+                       [np.sin(theta5),np.cos(theta5),0,0],
                        [0,0,1,0],
                        [0,0,0,1]] )
     tf_O_W = tf_1 * tf_2 * tf_3
 
     tf_T_W = tf_T_L * tf_L_O * tf_O_W
     tf_W_T = -tf_T_W[0:3,0:3].T * tf_T_W[0:3,3]
+
+    return tf_W_T
 
   def inv_kin(self, p, v):
     """
@@ -64,9 +67,9 @@ class CNC_5dof:
     theta4 = np.arccos(v[2])
     theta5 = np.arctan(v[0]/v[1])
 
-    A = np.array([ [-sin(theta4)*sin(theta5), cos(theta4)*sin(theta5), -cos(theta5)],
-                   [-sin(theta4)*cos(theta5), cos(theta4)*cos(theta5), sin(theta5)],
-                   [cos(theta4), -sin(theta4), 0] ])
-    B = np.array([ p[0] + self.Lx*cos(theta5) + self.Ly*cos(theta4)*sin(theta5) + (self.Lz + self.h)*sin(theta4)*sin(theta5),
-                   p[1] - self.Lx*sin(theta5) + self.Ly*cos(theta4)*cos(theta5) + (self.Lz + self.h)*sin(theta4)*cos(theta5),
-                   p[2] - self.Ly*sin(theta4) + (self.Lz + self.h)*cos(theta4) - self.l] )
+    A = np.array([ [-np.sin(theta4)*np.sin(theta5), np.cos(theta4)*np.sin(theta5), -np.cos(theta5)],
+                   [-np.sin(theta4)*np.cos(theta5), np.cos(theta4)*np.cos(theta5), np.sin(theta5)],
+                   [np.cos(theta4), -np.sin(theta4), 0] ])
+    B = np.array([ p[0] + self.Lx*np.cos(theta5) + self.Ly*np.cos(theta4)*np.sin(theta5) + (self.Lz + self.h)*np.sin(theta4)*np.sin(theta5),
+                   p[1] - self.Lx*np.sin(theta5) + self.Ly*np.cos(theta4)*np.cos(theta5) + (self.Lz + self.h)*np.sin(theta4)*np.cos(theta5),
+                   p[2] - self.Ly*np.sin(theta4) + (self.Lz + self.h)*np.cos(theta4) - self.l] )
