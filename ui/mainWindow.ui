@@ -4617,6 +4617,7 @@ background-image: url(:/cn5X/images/laser_test.png);</string>
      <string>Function</string>
     </property>
     <addaction name="actionRegistration"/>
+    <addaction name="actionCamera"/>
    </widget>
    <addaction name="mnuApplication"/>
    <addaction name="menuMachine"/>
@@ -4703,6 +4704,11 @@ background-image: url(:/cn5X/images/laser_test.png);</string>
   <action name="actionRegistration">
    <property name="text">
     <string>Registration</string>
+   </property>
+  </action>
+  <action name="actionCamera">
+   <property name="text">
+    <string>Camera</string>
    </property>
   </action>
  </widget>

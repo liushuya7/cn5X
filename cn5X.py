@@ -44,6 +44,7 @@ from grblJog import grblJog
 from myFile import gcodeFile, stlFile
 from grblConfig import grblConfig
 from RegistrationDialog import RegistrationDialog
+from CameraDialog import CameraDialog
 from cn5Xabout import cn5XAbout
 from xml.dom.minidom import parse, Node, Element
 
@@ -183,6 +184,7 @@ class GrblMainwindow(QtWidgets.QMainWindow):
 
     self.ui.mnu_GrblConfig.triggered.connect(self.on_mnu_GrblConfig)
     self.ui.actionRegistration.triggered.connect(self.on_mnu_ImplantRegistration)
+    self.ui.actionCamera.triggered.connect(self.on_mnu_Camera)
     self.ui.mnu_MPos.triggered.connect(self.on_mnu_MPos)
     self.ui.mnu_WPos.triggered.connect(self.on_mnu_WPos)
     self.ui.mnuDebug_mode.triggered.connect(self.on_mnuDebug_mode)
@@ -547,6 +549,10 @@ class GrblMainwindow(QtWidgets.QMainWindow):
   def on_mnu_ImplantRegistration(self):
     ''' Implant registration dialog'''
     self.registration_dialog = RegistrationDialog(self.__grblCom, viewer = self.vtk_viewer)
+
+  def on_mnu_Camera(self):
+    ''' Camera dialog'''
+    self.camera_dialog = CameraDialog()
 
   @pyqtSlot(str)
   def on_sig_config_changed(self, data: str):
