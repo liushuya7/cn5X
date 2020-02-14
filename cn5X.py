@@ -50,6 +50,7 @@ from xml.dom.minidom import parse, Node, Element
 import cn5X_rc
 
 from Viewer import Viewer
+from ros.JointStatePublisher import JointStatePublisher
 
 self_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -61,6 +62,9 @@ class GrblMainwindow(QtWidgets.QMainWindow):
 
   def __init__(self, parent=None):
     QtWidgets.QMainWindow.__init__(self, parent)
+
+    # ROS Joints States Publisher
+    self.joint_state_pub = JointStatePublisher()
 
     self.upper_case = upperCaseValidator(self)
     self.__gcodes_stack = []
@@ -130,7 +134,7 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     self.__grblCom.sig_recu.connect(self.on_sig_recu)
     self.__grblCom.sig_debug.connect(self.on_sig_debug)
 
-    self.decode = grblDecode(self.ui, self.log, self.__grblCom)
+    self.decode = grblDecode(self.ui, self.log, self.__grblCom, self.joint_state_pub)
 
     self.__jog = grblJog(self.__grblCom)
     self.ui.dsbJogSpeed.setValue(DEFAULT_JOG_SPEED)
