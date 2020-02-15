@@ -129,7 +129,7 @@ class grblDecode(QObject):
           self.__wpos[I] = float(tblPos[I]) - self.__wco[I]
         # Publish the joints to ROS
         if self.joint_state_pub:
-          self.joint_state_pub.publish(['x_box__tool', 'y_box1__x_box', 'base_link__y_box1', 'rotary_base__rotary_middle', 'rotary_middle__rotary_top'], self.__mpos[:5])
+          self.joint_state_pub.publish(['X', 'Y', 'Z', 'A', 'B'], self.__mpos[:5])
         
         # Updates the UI
         if not self.ui.mnu_MPos.isChecked():
