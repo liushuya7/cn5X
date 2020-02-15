@@ -76,7 +76,7 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
-        rotary_invisible:
+        rotary_base_invisible:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -126,15 +126,15 @@ Visualization Manager:
           Value: false
         rotary_base:
           Value: false
-        rotary_invisible:
+        rotary_base_invisible:
           Value: false
         rotary_middle:
           Value: false
         rotary_top:
           Value: true
         tool:
-          Value: false
-        tool_tip:
+          Value: true
+        tool_kins:
           Value: true
         x_box:
           Value: false
@@ -150,17 +150,17 @@ Visualization Manager:
       Tree:
         base_link:
           rotary_base:
-            rotary_invisible:
+            rotary_base_invisible:
               rotary_middle:
                 rotary_top:
-                  tool_tip:
+                  tool_kins:
                     {}
-          y_box1:
-            x_box:
-              tool:
+            y_box1:
+              x_box:
+                tool:
+                  {}
+              y_box2:
                 {}
-            y_box2:
-              {}
       Update Interval: 0
       Value: true
   Enabled: true
@@ -188,25 +188,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 1.22448146
+      Distance: 1.09032977
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.0872111917
-        Y: 0.152777344
-        Z: 0.0970513895
+        X: 0.109547183
+        Y: 0.124522731
+        Z: 0.0736588985
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.0500000007
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 0.449798346
+      Pitch: 0.574798346
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.31855249
+      Yaw: 4.2985549
     Saved: ~
 Window Geometry:
   Displays:
