@@ -37,7 +37,7 @@ class grblDecode(QObject):
    - Updates the graphical interface.
    - Stores values of decode parameters.
   '''
-  def __init__(self, ui, log, grbl: grblCom, joint_state_pub):
+  def __init__(self, ui, log, grbl: grblCom, joint_state_pub = None):
     super().__init__()
     self.ui = ui
     self.log = log
@@ -128,7 +128,8 @@ class grblDecode(QObject):
           self.__mpos[I] = float(tblPos[I])
           self.__wpos[I] = float(tblPos[I]) - self.__wco[I]
         # Publish the joints to ROS
-        self.joint_state_pub.publish(['x_box__tool', 'y_box1__x_box', 'base_link__y_box1', 'rotary_base__rotary_middle', 'rotary_middle__rotary_top'], self.__mpos[:5])
+        if self.joint_state_pub:
+          self.joint_state_pub.publish(['x_box__tool', 'y_box1__x_box', 'base_link__y_box1', 'rotary_base__rotary_middle', 'rotary_middle__rotary_top'], self.__mpos[:5])
         
         # Updates the UI
         if not self.ui.mnu_MPos.isChecked():

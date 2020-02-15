@@ -65,6 +65,8 @@ class GrblMainwindow(QtWidgets.QMainWindow):
 
     # ROS Joints States Publisher
     self.joint_state_pub = JointStatePublisher()
+    if not self.joint_state_pub.ros.is_connected:
+      self.joint_state_pub = None
 
     self.upper_case = upperCaseValidator(self)
     self.__gcodes_stack = []
