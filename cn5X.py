@@ -50,7 +50,7 @@ from xml.dom.minidom import parse, Node, Element
 import cn5X_rc
 
 from Viewer import Viewer
-from ros.JointStatePublisher import JointStatePublisher
+from ros.roslibpy.JointStatePublisher import JointStatePublisher
 
 self_dir = os.path.dirname(os.path.realpath(__file__))
 

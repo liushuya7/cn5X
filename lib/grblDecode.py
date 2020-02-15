@@ -30,8 +30,6 @@ from grblSettings import grblSetting
 from speedOverrides import *
 from grblCom import grblCom
 
-from ros.JointStatePublisher import JointStatePublisher
-
 class grblDecode(QObject):
   '''
   GRBL response decoding class:

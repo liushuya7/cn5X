@@ -104,3 +104,9 @@ cn5X.geany
 
 # Qt GUI autosave file
 .autosave
+
+# ROS build folders
+.catkin_tools/
+build/
+devel/
+logs/
