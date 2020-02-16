@@ -35,7 +35,7 @@ COM_DEFAULT_BAUD_RATE = 115200
 
 GRBL_QUERY_DELAY =  75      # ms
 
-DEFAULT_JOG_SPEED             = 1000
+DEFAULT_JOG_SPEED             = 10000
 
 class logSeverity(Enum):
   info    = 0

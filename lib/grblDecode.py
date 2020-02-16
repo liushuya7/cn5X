@@ -30,7 +30,6 @@ from grblSettings import grblSetting
 from speedOverrides import *
 from grblCom import grblCom
 
-
 class grblDecode(QObject):
   '''
   GRBL response decoding class:
@@ -38,7 +37,7 @@ class grblDecode(QObject):
    - Updates the graphical interface.
    - Stores values of decode parameters.
   '''
-  def __init__(self, ui, log, grbl: grblCom):
+  def __init__(self, ui, log, grbl: grblCom, joint_state_pub = None):
     super().__init__()
     self.ui = ui
     self.log = log
@@ -69,6 +68,7 @@ class grblDecode(QObject):
     self.__getNextGCodeParams = False
     self.__getNextGCodeState = False
 
+    self.joint_state_pub = joint_state_pub
 
   def setNbAxis(self, val: int):
     if val < 3 or val > 6:
@@ -123,10 +123,13 @@ class grblDecode(QObject):
       # Machine position MPos ($10=1)
       elif D[:5] == "MPos:":
         # Stores the last machine position received
-        tblPos = D[5:].split(",")    # D[5:] = 0.00, 0.00, 0.00, 0.00, 0.00
+        tblPos = D[5:].split(",")    # D[5:] = 0.00, 0.00, 0.00, 0.00, 0.00 0.00
         for I in range(len(tblPos)):
           self.__mpos[I] = float(tblPos[I])
           self.__wpos[I] = float(tblPos[I]) - self.__wco[I]
+        # Publish the joints to ROS
+        if self.joint_state_pub:
+          self.joint_state_pub.publish(['X', 'Y', 'Z', 'A', 'B'], self.__mpos[:5])
         
         # Updates the UI
         if not self.ui.mnu_MPos.isChecked():
