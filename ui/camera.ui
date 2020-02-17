@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>358</width>
-    <height>600</height>
+    <width>351</width>
+    <height>294</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -27,9 +27,6 @@
        <enum>QFrame::Raised</enum>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout">
-       <item>
-        <layout class="QHBoxLayout" name="layout"/>
-       </item>
        <item>
         <widget class="QCheckBox" name="checkBox_save_to_file">
          <property name="text">
@@ -51,6 +48,13 @@
         <widget class="QPushButton" name="pushButton_capture">
          <property name="text">
           <string>Capture</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pushButton_match">
+         <property name="text">
+          <string>Match Features</string>
          </property>
         </widget>
        </item>
