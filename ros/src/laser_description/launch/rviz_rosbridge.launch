@@ -1,9 +1,17 @@
 <launch>
+    <!-- roslibpy communication -->
     <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch"/>
-    <!-- <include file="find $(tf2_web_republisher)/launch/tf2_web_republisher.launch"/> -->
+    <!-- <include file="$(find tf2_web_republisher)/launch/tf2_web_republisher.launch"/> -->
+
+    <!-- Realsense Camera -->
+    <include file="$(find realsense2_camera)/launch/rs_camera.launch"/>
+    <!-- tuw checkerboard pkg -->
+    <include file="$(find tuw_checkerboard)/launch/checkerboard.launch"/>
 
     <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find laser_description)/urdf/laser.xacro'"/>
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher"/>
+
+    <!-- Rviz -->
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find laser_description)/launch/config.rviz"/>
     
 </launch>
