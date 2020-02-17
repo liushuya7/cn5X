@@ -124,9 +124,11 @@ class HandEyeCalibration:
 
 class HandEyeCalibrationDialog(QDialog):
 
-    def __init__(self, ros_bridge):
+    def __init__(self):
         super().__init__()
-        self.ros = ros_bridge.ros
+        
+        self.ros = roslibpy.Ros(host='localhost', port=9090)
+        self.ros.on_ready(lambda: print('ROS Connection:', self.ros.is_connected))
 
         ui_dlgHandEyeCalibration = os.path.join(self_dir, '../ui/handeye.ui')
         self.__di = uic.loadUi(ui_dlgHandEyeCalibration, self)
@@ -135,8 +137,13 @@ class HandEyeCalibrationDialog(QDialog):
         self.__di.pushButton_undo.pressed.connect(self.delete_last_data)
         self.__di.pushButton_complete.pressed.connect(self.calibrate)
 
+        camera_fixed_frame = self.__di.lineEdit_frame_camera.text()
+        robot_fixed_frame = self.__di.lineEdit_frame_robot_base.text()
+
         self.robot = CNC_5dof()
-        
+
+        self.tf_listener_robot = roslibpy.tf.TFClient(self.ros, robot_fixed_frame)
+        self.tf_listener_camera = roslibpy.tf.TFClient(self.ros, camera_fixed_frame)
         self.robot_poses = []
         self.camera_poses = []
 
@@ -144,7 +151,19 @@ class HandEyeCalibrationDialog(QDialog):
 
     def record_data(self):
         # record each pose as [tx, ty, tz, qx, qy, qz, qw]
-        pass
+        print("clicked")
+        checkerboard_frame = self.__di.lineEdit_frame_object.text()
+        end_effector_frame = self.__di.lineEdit_frame_robot_hand.text()
+        self.tf_listener_camera.subscribe(checkerboard_frame,self.camera_tf_callback)
+        self.tf_listener_robot.subscribe(end_effector_frame, self.robot_tf_callback)
+
+    def robot_tf_callback(self, data):
+        print(data)
+        print("get robt tf")
+
+    def camera_tf_callback(self, data):
+        print(data)
+        print("get camera tf")
     
     def delete_last_data(self):
         if len(robot_poses) > 0:

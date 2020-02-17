@@ -24,7 +24,11 @@
    </property>
    <layout class="QGridLayout" name="gridLayout">
     <item row="0" column="1">
-     <widget class="QLineEdit" name="lineEdit_frame_camera"/>
+     <widget class="QLineEdit" name="lineEdit_frame_camera">
+      <property name="text">
+       <string>/camera_color_optical_frame</string>
+      </property>
+     </widget>
     </item>
     <item row="2" column="0">
      <widget class="QLabel" name="label_robot_base">
@@ -34,10 +38,18 @@
      </widget>
     </item>
     <item row="2" column="1">
-     <widget class="QLineEdit" name="lineEdit_frame_robot_base"/>
+     <widget class="QLineEdit" name="lineEdit_frame_robot_base">
+      <property name="text">
+       <string>/y_box1</string>
+      </property>
+     </widget>
     </item>
     <item row="1" column="1">
-     <widget class="QLineEdit" name="lineEdit_frame_object"/>
+     <widget class="QLineEdit" name="lineEdit_frame_object">
+      <property name="text">
+       <string>/checkerboard</string>
+      </property>
+     </widget>
     </item>
     <item row="1" column="0">
      <widget class="QLabel" name="label_object">
@@ -47,7 +59,11 @@
      </widget>
     </item>
     <item row="3" column="1">
-     <widget class="QLineEdit" name="lineEdit_frame_robot_hand"/>
+     <widget class="QLineEdit" name="lineEdit_frame_robot_hand">
+      <property name="text">
+       <string>/W</string>
+      </property>
+     </widget>
     </item>
     <item row="3" column="0">
      <widget class="QLabel" name="label_end_effector">
