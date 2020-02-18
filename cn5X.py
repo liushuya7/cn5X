@@ -560,8 +560,8 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     
   @pyqtSlot()
   def on_mnu_HandEyeCalibration(self):
-    ''' Implant registration dialog'''
-    self.handeyecalibration_dialog = HandEyeCalibrationDialog()
+    ''' HandeyeCalibration dialog'''
+    self.handeyecalibration_dialog = HandEyeCalibrationDialog(self.__grblCom)
 
   @pyqtSlot(str)
   def on_sig_config_changed(self, data: str):

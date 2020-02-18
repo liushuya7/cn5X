@@ -2,7 +2,9 @@ import os
 from PyQt5.QtWidgets import QDialog
 from PyQt5 import uic
 
+from grblCom import grblCom
 import numpy as np
+import time
 from scipy.spatial.transform import Rotation as R
 from robot_kins import CNC_5dof
 
@@ -62,7 +64,7 @@ class HandEyeCalibration:
         Y_est[0:3,0:3]= Y
         Y_est[0:3,3]= t_est[3:6].T
         # verify Y_est using rigid_registration
-        Y_est_check,ErrorStats= Batch_Processing.__rigid_registration(A,X_est,B)
+        Y_est_check,ErrorStats= HandEyeCalibration.__rigid_registration(A,X_est,B)
         return X_est,Y_est, Y_est_check,ErrorStats
 
     @staticmethod
@@ -122,9 +124,10 @@ class HandEyeCalibration:
 
 class HandEyeCalibrationDialog(QDialog):
 
-    def __init__(self):
+    def __init__(self, grbl: grblCom):
         super().__init__()
-        
+
+        self.__grblCom = grbl
         self.ros = roslibpy.Ros(host='localhost', port=9090)
         self.ros.on_ready(lambda: print('ROS Connection (Handeye):', self.ros.is_connected))
 
@@ -134,6 +137,7 @@ class HandEyeCalibrationDialog(QDialog):
         self.__di.pushButton_collect.clicked.connect(self.record_data)
         self.__di.pushButton_undo.pressed.connect(self.delete_last_data)
         self.__di.pushButton_complete.pressed.connect(self.calibrate)
+        self.__di.pushButton_auto_start.pressed.connect(self.automaticCalibration)
         self.__di.lineEdit_frame_camera.textChanged.connect(self.updateListener)
         self.__di.lineEdit_frame_object.textChanged.connect(self.updateListener)
         self.__di.lineEdit_frame_robot_base.textChanged.connect(self.updateListener)
@@ -145,7 +149,6 @@ class HandEyeCalibrationDialog(QDialog):
         self.object_pose = None
         self.robot_poses = [] # list of [tx, ty, tz, qx, qy, qz, qw]
         self.object_poses = [] # list of [tx, ty, tz, qx, qy, qz, qw]
-
 
         self.show()
 
@@ -175,14 +178,40 @@ class HandEyeCalibrationDialog(QDialog):
         object_pose.extend(object_tvec)
         object_pose.extend(object_quat)
 
+        print("robot")
+        print(robot_pose)
+        print("checkerboard")
+        print(object_pose)
         self.robot_poses.append(robot_pose)
         self.object_poses.append(object_pose)
+
+        self.label_pose_count.setNum(len(self.robot_poses))
 
     def update_robot_pose(self, data):
         self.robot_pose = data
 
     def update_camera_detection(self, data):
         self.object_pose = data
+
+    def automaticCalibration(self):
+        # num_poses = self.__di.spinBox_pose_count.value()
+
+        z_vals = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+        a_vals = [-60, -65, -70, -75, -80, -85, -90, -100, -110]
+        b_vals = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+        num_poses = len(z_vals)
+
+        for i in range(num_poses):
+            self.ready_to_record = True
+            # send command to move robot
+            self.__grblCom.gcodePush("G0 Z{} A{} B{}".format(z_vals[i], a_vals[i], b_vals[i]))
+            # hold for a while
+            time.sleep(2)
+            # record TF
+            self.record_data()
+        # calibrate
+        self.calibrate()
+
 
     def delete_last_data(self):
         # TODO: edit function later
@@ -196,16 +225,16 @@ class HandEyeCalibrationDialog(QDialog):
         robot_tfs = []
         camera_tfs = []
         for i in range(len(self.robot_poses)):
-            robot_tf = HandEyeCalibrationDialog.convertToSE3(self.robot_poses[i][3:], self.robot_poses[i][0:3])
+            robot_tf = HandEyeCalibrationDialog.convertToSE3(np.asarray(self.robot_poses[i][3:]), np.asarray(self.robot_poses[i][0:3]))
             robot_tfs.append(np.asarray(robot_tf))
-            camera_tf = HandEyeCalibrationDialog.convertToSE3(self.camera_poses[i][3:], self.camera_poses[i][0:3])
+            camera_tf = HandEyeCalibrationDialog.convertToSE3(np.asarray(self.object_poses[i][3:]), np.asarray(self.object_poses[i][0:3]))
             camera_tfs.append(np.asarray(camera_tf))
 
         A = np.array(HandEyeCalibrationDialog.format(robot_tfs))
         B = np.array(HandEyeCalibrationDialog.format(camera_tfs))
-        X_est,_,_,_ = HandEyeCalibration.pose_estimation(A,B)
-        return X_est
-
+        self.X_est,_,_,_ = HandEyeCalibration.pose_estimation(A,B)
+        print(self.X_est)
+        
     @staticmethod
     def convertToSE3(quat, tvec):
         """
@@ -220,7 +249,8 @@ class HandEyeCalibrationDialog(QDialog):
         """
         r = R.from_quat(quat)
         r_mat = r.as_dcm()
-        tf = np.concatenate((r_mat, tvec.T), axis=1)
+        tvec = tvec.reshape((3,1))
+        tf = np.concatenate((r_mat, tvec), axis=1)
         last_row = [[0, 0, 0, 1]]
         tf = np.concatenate((tf, last_row), axis=0)
         return tf
