@@ -1,9 +1,6 @@
 import os
-from PyQt5.QtCore import Qt, QObject, pyqtSignal, pyqtSlot
-from PyQt5.QtWidgets import QDialog, QAbstractButton, QDialogButtonBox, QCheckBox, QSpinBox, QDoubleSpinBox, QLineEdit, QTableWidgetItem
-from PyQt5.QtGui import QStandardItemModel, QStandardItem, QValidator
+from PyQt5.QtWidgets import QDialog
 from PyQt5 import uic
-from cn5X_config import *
 
 import numpy as np
 from robot_kins import CNC_5dof
@@ -128,7 +125,7 @@ class HandEyeCalibrationDialog(QDialog):
         super().__init__()
         
         self.ros = roslibpy.Ros(host='localhost', port=9090)
-        self.ros.on_ready(lambda: print('ROS Connection:', self.ros.is_connected))
+        self.ros.on_ready(lambda: print('ROS Connection (Handeye):', self.ros.is_connected))
 
         ui_dlgHandEyeCalibration = os.path.join(self_dir, '../ui/handeye.ui')
         self.__di = uic.loadUi(ui_dlgHandEyeCalibration, self)
@@ -139,37 +136,40 @@ class HandEyeCalibrationDialog(QDialog):
 
         camera_fixed_frame = self.__di.lineEdit_frame_camera.text()
         robot_fixed_frame = self.__di.lineEdit_frame_robot_base.text()
-
+        checkerboard_frame = self.__di.lineEdit_frame_object.text()
+        end_effector_frame = self.__di.lineEdit_frame_robot_hand.text()
+        
         self.robot = CNC_5dof()
 
         self.tf_listener_robot = roslibpy.tf.TFClient(self.ros, robot_fixed_frame)
         self.tf_listener_camera = roslibpy.tf.TFClient(self.ros, camera_fixed_frame)
-        self.robot_poses = []
-        self.camera_poses = []
+
+        self.tf_listener_camera.subscribe(checkerboard_frame,self.update_camera_detection)
+        self.tf_listener_robot.subscribe(end_effector_frame, self.update_robot_poses)
+        
+        self.robot_pose = None
+        self.object_pose = None
 
         self.show()
 
     def record_data(self):
         # record each pose as [tx, ty, tz, qx, qy, qz, qw]
-        print("clicked")
-        checkerboard_frame = self.__di.lineEdit_frame_object.text()
-        end_effector_frame = self.__di.lineEdit_frame_robot_hand.text()
-        self.tf_listener_camera.subscribe(checkerboard_frame,self.camera_tf_callback)
-        self.tf_listener_robot.subscribe(end_effector_frame, self.robot_tf_callback)
+        print("robot pose:")
+        print(self.robot_pose)
+        print("camera detection:")
+        print(self.object_pose)
 
-    def robot_tf_callback(self, data):
-        print(data)
-        print("get robt tf")
+    def update_robot_poses(self, data):
+        self.robot_pose = data
 
-    def camera_tf_callback(self, data):
-        print(data)
-        print("get camera tf")
-    
+    def update_camera_detection(self, data):
+        self.object_pose = data
+
     def delete_last_data(self):
-        if len(robot_poses) > 0:
-            self.robot_poses = self.robot_poses[:-1]
-            self.camera_poses = self.camera_poses[:-1]
-            num = len(self.robot_poses)
+        if len(robot_pose) > 0:
+            self.robot_pose = self.robot_poses[:-1]
+            self.camera_pose = self.camera_poses[:-1]
+            num = len(self.robot_pose)
             self.__di.label_pose_count.setText(str(num))
 
     def calibrate(self):

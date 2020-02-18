@@ -1,7 +1,7 @@
 <launch>
     <!-- roslibpy communication -->
     <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch"/>
-    <!-- <include file="$(find tf2_web_republisher)/launch/tf2_web_republisher.launch"/> -->
+    <node pkg="tf2_web_republisher" type="tf2_web_republisher" name="tf2_web_republisher" />
 
     <!-- Realsense Camera -->
     <include file="$(find realsense2_camera)/launch/rs_camera.launch"/>

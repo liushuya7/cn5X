@@ -6,7 +6,7 @@ import math, time
 class JointStatePublisher():
     def __init__(self):
         self.ros = roslibpy.Ros(host='localhost', port=9090)
-        self.ros.on_ready(lambda: print('ROS Connection:', self.ros.is_connected))
+        self.ros.on_ready(lambda: print('ROS Connection (JointStatePublisher):', self.ros.is_connected))
         self.pub = roslibpy.Topic(self.ros, 'joint_states', 'sensor_msgs/JointState')
         try:
             self.ros.run(timeout=0.1)
