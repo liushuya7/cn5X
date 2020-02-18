@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import QDialog
 from PyQt5 import uic
 
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 from robot_kins import CNC_5dof
 
 import roslibpy
@@ -133,39 +134,58 @@ class HandEyeCalibrationDialog(QDialog):
         self.__di.pushButton_collect.clicked.connect(self.record_data)
         self.__di.pushButton_undo.pressed.connect(self.delete_last_data)
         self.__di.pushButton_complete.pressed.connect(self.calibrate)
+        self.__di.lineEdit_frame_camera.textChanged.connect(self.updateListener)
+        self.__di.lineEdit_frame_object.textChanged.connect(self.updateListener)
+        self.__di.lineEdit_frame_robot_base.textChanged.connect(self.updateListener)
+        self.__di.lineEdit_frame_robot_hand.textChanged.connect(self.updateListener)
 
+        self.robot = CNC_5dof()
+        self.updateListener() 
+        self.robot_pose = None
+        self.object_pose = None
+        self.robot_poses = [] # list of [tx, ty, tz, qx, qy, qz, qw]
+        self.object_poses = [] # list of [tx, ty, tz, qx, qy, qz, qw]
+
+
+        self.show()
+
+    def updateListener(self):
+        # get frame names from GUI, create two listener that subscribe to updated frames
         camera_fixed_frame = self.__di.lineEdit_frame_camera.text()
         robot_fixed_frame = self.__di.lineEdit_frame_robot_base.text()
         checkerboard_frame = self.__di.lineEdit_frame_object.text()
         end_effector_frame = self.__di.lineEdit_frame_robot_hand.text()
-        
-        self.robot = CNC_5dof()
 
-        self.tf_listener_robot = roslibpy.tf.TFClient(self.ros, robot_fixed_frame)
-        self.tf_listener_camera = roslibpy.tf.TFClient(self.ros, camera_fixed_frame)
+        self.tf_listener_robot = roslibpy.tf.TFClient(self.ros, robot_fixed_frame, angular_threshold=0.001, translation_threshold=0.0001)
+        self.tf_listener_camera = roslibpy.tf.TFClient(self.ros, camera_fixed_frame, angular_threshold=0.001, translation_threshold=0.0001)
 
         self.tf_listener_camera.subscribe(checkerboard_frame,self.update_camera_detection)
-        self.tf_listener_robot.subscribe(end_effector_frame, self.update_robot_poses)
-        
-        self.robot_pose = None
-        self.object_pose = None
-
-        self.show()
+        self.tf_listener_robot.subscribe(end_effector_frame, self.update_robot_pose)
 
     def record_data(self):
         # record each pose as [tx, ty, tz, qx, qy, qz, qw]
-        print("robot pose:")
-        print(self.robot_pose)
-        print("camera detection:")
-        print(self.object_pose)
+        robot_quat = [self.robot_pose['rotation']['x'], self.robot_pose['rotation']['y'], self.robot_pose['rotation']['z'], self.robot_pose['rotation']['w']]
+        robot_tvec = [self.robot_pose['translation']['x'], self.robot_pose['translation']['y'], self.robot_pose['translation']['z']]
+        robot_pose = []
+        robot_pose.extend(robot_tvec)
+        robot_pose.extend(robot_quat)
+        object_quat = [self.object_pose['rotation']['x'], self.object_pose['rotation']['y'], self.object_pose['rotation']['z'], self.object_pose['rotation']['w']]
+        object_tvec = [self.object_pose['translation']['x'], self.object_pose['translation']['y'], self.object_pose['translation']['z']]
+        object_pose = []
+        object_pose.extend(object_tvec)
+        object_pose.extend(object_quat)
 
-    def update_robot_poses(self, data):
+        self.robot_poses.append(robot_pose)
+        self.object_poses.append(object_pose)
+
+    def update_robot_pose(self, data):
         self.robot_pose = data
 
     def update_camera_detection(self, data):
         self.object_pose = data
 
     def delete_last_data(self):
+        # TODO: edit function later
         if len(robot_pose) > 0:
             self.robot_pose = self.robot_poses[:-1]
             self.camera_pose = self.camera_poses[:-1]

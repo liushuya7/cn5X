@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>494</width>
-    <height>355</height>
+    <width>430</width>
+    <height>381</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -18,7 +18,7 @@
     <rect>
      <x>20</x>
      <y>20</y>
-     <width>451</width>
+     <width>391</width>
      <height>181</height>
     </rect>
    </property>
@@ -81,69 +81,150 @@
     </item>
    </layout>
   </widget>
-  <widget class="QPushButton" name="pushButton_collect">
+  <widget class="QGroupBox" name="groupBox_manual">
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>220</y>
-     <width>89</width>
-     <height>25</height>
+     <y>210</y>
+     <width>201</width>
+     <height>111</height>
     </rect>
    </property>
-   <property name="text">
-    <string>Collect</string>
+   <property name="title">
+    <string>Manual</string>
    </property>
+   <widget class="QPushButton" name="pushButton_collect">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>30</y>
+      <width>89</width>
+      <height>25</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Collect</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_undo">
+    <property name="geometry">
+     <rect>
+      <x>100</x>
+      <y>30</y>
+      <width>89</width>
+      <height>25</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Undo</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_complete">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>80</y>
+      <width>89</width>
+      <height>25</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Complete</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_poses_manual">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>60</y>
+      <width>67</width>
+      <height>17</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Poses:</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_pose_count">
+    <property name="geometry">
+     <rect>
+      <x>80</x>
+      <y>60</y>
+      <width>67</width>
+      <height>17</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
   </widget>
-  <widget class="QPushButton" name="pushButton_complete">
+  <widget class="QGroupBox" name="groupBox_auto">
    <property name="geometry">
     <rect>
-     <x>20</x>
-     <y>310</y>
-     <width>89</width>
-     <height>25</height>
+     <x>230</x>
+     <y>210</y>
+     <width>181</width>
+     <height>111</height>
     </rect>
    </property>
-   <property name="text">
-    <string>Complete</string>
+   <property name="title">
+    <string>Automatic</string>
    </property>
+   <widget class="QLabel" name="label_poses_auto">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>40</y>
+      <width>67</width>
+      <height>17</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Poses:</string>
+    </property>
+   </widget>
+   <widget class="QSpinBox" name="spinBox_pose_count">
+    <property name="geometry">
+     <rect>
+      <x>80</x>
+      <y>40</y>
+      <width>42</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="minimum">
+     <number>9</number>
+    </property>
+    <property name="maximum">
+     <number>30</number>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_auto_start">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>80</y>
+      <width>89</width>
+      <height>25</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Start</string>
+    </property>
+   </widget>
   </widget>
-  <widget class="QPushButton" name="pushButton_undo">
-   <property name="geometry">
-    <rect>
-     <x>140</x>
-     <y>220</y>
-     <width>89</width>
-     <height>25</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Undo</string>
-   </property>
-  </widget>
-  <widget class="QLabel" name="label_poses">
+  <widget class="QPushButton" name="pushButton_save">
    <property name="geometry">
     <rect>
      <x>30</x>
-     <y>270</y>
-     <width>67</width>
-     <height>17</height>
+     <y>340</y>
+     <width>89</width>
+     <height>25</height>
     </rect>
    </property>
    <property name="text">
-    <string>Poses:</string>
-   </property>
-  </widget>
-  <widget class="QLabel" name="label_pose_count">
-   <property name="geometry">
-    <rect>
-     <x>100</x>
-     <y>270</y>
-     <width>67</width>
-     <height>17</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string/>
+    <string>Save</string>
    </property>
   </widget>
  </widget>
