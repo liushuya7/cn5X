@@ -1,3 +1,9 @@
 [submodule "ros/src/tools/realsense-ros"]
 	path = ros/src/tools/realsense-ros
 	url = https://github.com/IntelRealSense/realsense-ros.git
+[submodule "ros/src/tools/tuw_marker_detection"]
+	path = ros/src/tools/tuw_marker_detection
+	url = https://github.com/weilunhuang-jhu/tuw_marker_detection.git
+[submodule "ros/src/tools/marker_rviz_plugin"]
+	path = ros/src/tools/marker_rviz_plugin
+	url = https://github.com/weilunhuang-jhu/marker_rviz_plugin.git

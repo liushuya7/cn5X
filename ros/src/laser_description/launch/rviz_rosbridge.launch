@@ -6,7 +6,7 @@
     <!-- Realsense Camera -->
     <include file="$(find realsense2_camera)/launch/rs_camera.launch"/>
     <!-- tuw checkerboard pkg -->
-    <include file="$(find tuw_checkerboard)/launch/checkerboard.launch"/>
+    <include file="$(find tuw_aruco)/launch/demo_single_marker_live.launch"/>
 
     <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find laser_description)/urdf/laser.xacro'"/>
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher"/>
