@@ -289,8 +289,25 @@ class HandEyeCalibrationDialog(QDialog):
 
             A = np.array(HandEyeCalibrationDialog.format(robot_tfs))
             B = np.array(HandEyeCalibrationDialog.format(camera_tfs))
-            self.X_est,_,_,_ = HandEyeCalibration.pose_estimation(A,B)
+            self.X_est,Y_est,_,_ = HandEyeCalibration.pose_estimation(A,B)
             print(self.X_est)
+
+            # Accuracy Evaluation
+            rot_acc = 0
+            trans_acc = 0
+            for i in range(len(robot_tfs)):
+                row_norm = np.linalg.norm(robot_tfs[0:3,0:3,i] * X_est[0:3,0:3] - Y_est[0:3,0:3] * camera_tfs[0:3,0:3,i], axis=1)
+                matrix_norm = np.linalg.norm(row_norm)**2
+                rot_acc = rot_acc + (1 - matrix_norm/8) / len(robot_tfs)
+
+                vec1 = robot_tfs[0:3,0:3,i] * X_est[0:3,3] + robot_tfs[0:3,3,i]
+                vec1 = vec1 / np.linalg.norm(vec1)
+                vec2 = Y_est[0:3,0:3] * camera_tfs[0:3,3,i] + Y_est[0:3,3]
+                vec2 = vec2 / np.linalg.norm(vec2)
+                scalar = vec1.T * vec2
+                trans_acc = abs(scalar) / len(robot_tfs)
+            print(rot_acc)
+            print(trans_acc)
         
 
     @staticmethod
