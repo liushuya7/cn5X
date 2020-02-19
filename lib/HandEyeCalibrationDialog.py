@@ -7,6 +7,7 @@ import numpy as np
 import time
 from scipy.spatial.transform import Rotation as R
 from robot_kins import CNC_5dof
+import random
 
 import roslibpy
 import roslibpy.tf
@@ -49,6 +50,7 @@ class HandEyeCalibration:
         A_est = np.zeros([3*n,6])
         b_est = np.zeros([3*n,1])
         for ii in range(n-1):
+            Y = A[0:3,0:3,ii] * Rx * B[0:3,0:3,ii].T
             A_est[3*ii:3*ii+3,:] =np.concatenate((-A[0:3,0:3,ii], np.eye(3)), \
                 axis=1)
             b_est[3*ii:3*ii+3,:] = np.transpose(A[0:3,3,ii] - \
@@ -148,22 +150,34 @@ class HandEyeCalibrationDialog(QDialog):
         self.robot_pose = None
         self.object_pose = None
         self.robot_poses = [] # list of [tx, ty, tz, qx, qy, qz, qw]
-        self.object_poses = [] # list of [tx, ty, tz, qx, qy, qz, qw]
+        # self.object_poses = [] # list of [tx, ty, tz, qx, qy, qz, qw]
+        self.marker1_poses = []
+        self.marker2_poses = []
 
         self.show()
+
 
     def updateListener(self):
         # get frame names from GUI, create two listener that subscribe to updated frames
         camera_fixed_frame = self.__di.lineEdit_frame_camera.text()
         robot_fixed_frame = self.__di.lineEdit_frame_robot_base.text()
-        checkerboard_frame = self.__di.lineEdit_frame_object.text()
+        # checkerboard_frame = self.__di.lineEdit_frame_object.text()
+        tool_frame = self.__di.lineEdit_frame_tool.text()
+        marker1_frame = self.__di_lineEdit_frame_marker1.text()
+        marker2_frame = self.__di_lineEdit_frame_marker2.text()
         end_effector_frame = self.__di.lineEdit_frame_robot_hand.text()
 
-        self.tf_listener_robot = roslibpy.tf.TFClient(self.ros, robot_fixed_frame, angular_threshold=0.001, translation_threshold=0.0001)
-        self.tf_listener_camera = roslibpy.tf.TFClient(self.ros, camera_fixed_frame, angular_threshold=0.001, translation_threshold=0.0001)
+        # self.tf_listener_robot = roslibpy.tf.TFClient(self.ros, robot_fixed_frame, angular_threshold=0.001, translation_threshold=0.0001)
+        # self.tf_listener_camera = roslibpy.tf.TFClient(self.ros, camera_fixed_frame, angular_threshold=0.001, translation_threshold=0.0001)
+        self.tf_listener_robot = roslibpy.tf.TFClient(self.ros, tool_frame, angular_threshold=0.001, translation_threshold=0.0001)
+        self.tf_listener_marker1 = roslibpy.tf.TFClient(self.ros, camera_fixed_frame, angular_threshold=0.001, translation_threshold=0.0001)
+        self.tf_listener_marker2 = roslibpy.tf.TFClient(self.ros, camera_fixed_frame, angular_threshold=0.001, translation_threshold=0.0001)
 
-        self.tf_listener_camera.subscribe(checkerboard_frame,self.update_camera_detection)
+        # self.tf_listener_camera.subscribe(checkerboard_frame,self.update_camera_detection)
         self.tf_listener_robot.subscribe(end_effector_frame, self.update_robot_pose)
+        self.tf_listener_marker1.subscribe(marker1_frame,self.update_marker1_detection)
+        self.tf_listener_marker2.subscribe(marker2_frame,self.update_marker2_detection)
+
 
     def record_data(self):
         # record each pose as [tx, ty, tz, qx, qy, qz, qw]
@@ -172,69 +186,113 @@ class HandEyeCalibrationDialog(QDialog):
         robot_pose = []
         robot_pose.extend(robot_tvec)
         robot_pose.extend(robot_quat)
-        object_quat = [self.object_pose['rotation']['x'], self.object_pose['rotation']['y'], self.object_pose['rotation']['z'], self.object_pose['rotation']['w']]
-        object_tvec = [self.object_pose['translation']['x'], self.object_pose['translation']['y'], self.object_pose['translation']['z']]
-        object_pose = []
-        object_pose.extend(object_tvec)
-        object_pose.extend(object_quat)
+        # object_quat = [self.object_pose['rotation']['x'], self.object_pose['rotation']['y'], self.object_pose['rotation']['z'], self.object_pose['rotation']['w']]
+        # object_tvec = [self.object_pose['translation']['x'], self.object_pose['translation']['y'], self.object_pose['translation']['z']]
+        # object_pose = []
+        # object_pose.extend(object_tvec)
+        # object_pose.extend(object_quat)
+        marker1_quat = [self.marker1_pose['rotation']['x'], self.marker1_pose['rotation']['y'], self.marker1_pose['rotation']['z'], self.marker1_pose['rotation']['w']]
+        marker1_tvec = [self.marker1_pose['translation']['x'], self.marker1_pose['translation']['y'], self.marker1_pose['translation']['z']]
+        marker1_pose = []
+        marker1_pose.extend(marker1_tvec)
+        marker1_pose.extend(marker1_quat)
+        marker2_quat = [self.marker2_pose['rotation']['x'], self.marker2_pose['rotation']['y'], self.marker2_pose['rotation']['z'], self.marker2_pose['rotation']['w']]
+        marker2_tvec = [self.marker2_pose['translation']['x'], self.marker2_pose['translation']['y'], self.marker2_pose['translation']['z']]
+        marker2_pose = []
+        marker2_pose.extend(marker2_tvec)
+        marker2_pose.extend(marker2_quat)
 
         print("robot")
         print(robot_pose)
-        print("checkerboard")
-        print(object_pose)
+        # print("checkerboard")
+        # print(object_pose)
+        print("marker1")
+        print(marker1_pose)
+        print("marker2")
+        print(marker2_pose)
         self.robot_poses.append(robot_pose)
-        self.object_poses.append(object_pose)
+        # self.object_poses.append(object_pose)
+        self.marker1_poses.append(marker1_pose)
+        self.marker2_poses.append(marker2_pose)
 
         self.label_pose_count.setNum(len(self.robot_poses))
+
 
     def update_robot_pose(self, data):
         self.robot_pose = data
 
+
     def update_camera_detection(self, data):
         self.object_pose = data
 
-    def automaticCalibration(self):
-        # num_poses = self.__di.spinBox_pose_count.value()
 
-        z_vals = [0, 0, 0, 0, 0, 0, 0, 0, 0]
-        a_vals = [-60, -65, -70, -75, -80, -85, -90, -100, -110]
-        b_vals = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+    def update_marker1_detection(self, data):
+        self.marker1_pose = data
+
+
+    def update_marker2_detection(self, data):
+        self.marker2_pose = data
+
+
+    def automaticCalibration(self):
+        num_poses = self.__di.spinBox_pose_count.value()
+        x_vals = np.linspace(-100, 0, num=num_poses)
+        y_vals =  np.linspace(-100, 0, num=num_poses)
+        z_vals = np.linspace(-10, 0, num=num_poses)
+        a_vals = np.linspace(-110, -60, num=num_poses)
+        b_vals = np.linspace(-360, 0, num=num_poses, endpoint=False)
+        random.shuffle(x_vals)
+        random.shuffle(y_vals)
+        random.shuffle(z_vals)
+        random.shuffle(a_vals)
+        random.shuffle(b_vals)
         num_poses = len(z_vals)
 
         for i in range(num_poses):
             self.ready_to_record = True
-            # send command to move robot
-            self.__grblCom.gcodePush("G0 Z{} A{} B{}".format(z_vals[i], a_vals[i], b_vals[i]))
-            # hold for a while
-            time.sleep(2)
-            # record TF
+            self.__grblCom.gcodePush("G0 X{} Y{} Z{} A{} B{}".format(x_vals[i], y_vals[i], z_vals[i], a_vals[i], b_vals[i]))
+            time.sleep(2) # wait till robot reaches position
             self.record_data()
-        # calibrate
+
         self.calibrate()
 
 
     def delete_last_data(self):
         # TODO: edit function later
-        if len(robot_pose) > 0:
-            self.robot_pose = self.robot_poses[:-1]
-            self.camera_pose = self.camera_poses[:-1]
-            num = len(self.robot_pose)
+        if len(self.robot_poses) > 0:
+            self.robot_poses = self.robot_poses[:-1]
+            # self.camera_poses = self.camera_poses[:-1]
+            self.marker1_poses = self.marker1_poses[:-1]
+            self.marker2_poses = self.marker2_poses[:-1]
+            num = len(self.robot_poses)
             self.__di.label_pose_count.setText(str(num))
 
-    def calibrate(self):
-        robot_tfs = []
-        camera_tfs = []
-        for i in range(len(self.robot_poses)):
-            robot_tf = HandEyeCalibrationDialog.convertToSE3(np.asarray(self.robot_poses[i][3:]), np.asarray(self.robot_poses[i][0:3]))
-            robot_tfs.append(np.asarray(robot_tf))
-            camera_tf = HandEyeCalibrationDialog.convertToSE3(np.asarray(self.object_poses[i][3:]), np.asarray(self.object_poses[i][0:3]))
-            camera_tfs.append(np.asarray(camera_tf))
 
-        A = np.array(HandEyeCalibrationDialog.format(robot_tfs))
-        B = np.array(HandEyeCalibrationDialog.format(camera_tfs))
-        self.X_est,_,_,_ = HandEyeCalibration.pose_estimation(A,B)
-        print(self.X_est)
+    def calibrate(self):
+        if len(self.robot_poses) < 4:
+            print("Please record at least 4 points.")
+        else:
+            robot_tfs = []
+            camera_tfs = []
+            for i in range(len(self.robot_poses)):
+                robot_tf = HandEyeCalibrationDialog.convertToSE3(np.asarray(self.robot_poses[i][3:]), np.asarray(self.robot_poses[i][0:3]))
+                robot_tfs.append(np.asarray(robot_tf))
+                # camera_tf = HandEyeCalibrationDialog.convertToSE3(np.asarray(self.object_poses[i][3:]), np.asarray(self.object_poses[i][0:3]))
+                # camera_tfs.append(np.asarray(camera_tf))
+                marker1_tf = HandEyeCalibrationDialog.convertToSE3(np.asarray(self.marker1_poses[i][3:]), np.asarray(self.marker1_poses[i][0:3]))
+                marker2_tf = HandEyeCalibrationDialog.convertToSE3(np.asarray(self.marker2_poses[i][3:]), np.asarray(self.marker2_poses[i][0:3]))
+                camera_tf = np.zeros((4,4))
+                camera_tf[3,3] = 1
+                camera_tf[0:3,0:3] = marker2[0:3,0:3] * marker1[0:3,0:3].T
+                camera_tf[0:3,3] = marker2[0:3,0:3] * -marker1[0:3,0:3].T * marker1[0:3,3] + marker2[0:3,3]
+                camera_tfs.append(np.asarray(camera_tf))
+
+            A = np.array(HandEyeCalibrationDialog.format(robot_tfs))
+            B = np.array(HandEyeCalibrationDialog.format(camera_tfs))
+            self.X_est,_,_,_ = HandEyeCalibration.pose_estimation(A,B)
+            print(self.X_est)
         
+
     @staticmethod
     def convertToSE3(quat, tvec):
         """
@@ -254,6 +312,7 @@ class HandEyeCalibrationDialog(QDialog):
         last_row = [[0, 0, 0, 1]]
         tf = np.concatenate((tf, last_row), axis=0)
         return tf
+
 
     @staticmethod
     def format(tfs):
