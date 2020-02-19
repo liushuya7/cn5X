@@ -45,13 +45,14 @@ from myFile import gcodeFile, stlFile
 from grblConfig import grblConfig
 from RegistrationDialog import RegistrationDialog
 from CameraDialog import CameraDialog
+from HandEyeCalibrationDialog import HandEyeCalibrationDialog
 from cn5Xabout import cn5XAbout
 from xml.dom.minidom import parse, Node, Element
 
 import cn5X_rc
 
 from Viewer import Viewer
-from rosBridge import JointStatePublisher
+from JointStatePublisher import JointStatePublisher
 
 self_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -300,6 +301,9 @@ class GrblMainwindow(QtWidgets.QMainWindow):
 
     # Registration
     self.registration_dialog = None
+
+    # HandEyeCalibration
+    self.ui.actionHandeye.triggered.connect(self.on_mnu_HandEyeCalibration)
 
     #--------------------------------------------------------------------------------------
     # Parse arguments from the command line
@@ -555,6 +559,11 @@ class GrblMainwindow(QtWidgets.QMainWindow):
   def on_mnu_ImplantRegistration(self):
     ''' Implant registration dialog'''
     self.registration_dialog = RegistrationDialog(self.__grblCom, viewer = self.vtk_viewer)
+    
+  @pyqtSlot()
+  def on_mnu_HandEyeCalibration(self):
+    ''' HandeyeCalibration dialog'''
+    self.handeyecalibration_dialog = HandEyeCalibrationDialog(self.__grblCom)
 
   def on_mnu_Camera(self):
     ''' Camera dialog'''

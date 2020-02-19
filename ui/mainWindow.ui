@@ -4618,6 +4618,7 @@ background-image: url(:/cn5X/images/laser_test.png);</string>
     </property>
     <addaction name="actionRegistration"/>
     <addaction name="actionCamera"/>
+    <addaction name="actionHandeye"/>
    </widget>
    <addaction name="mnuApplication"/>
    <addaction name="menuMachine"/>
@@ -4709,6 +4710,11 @@ background-image: url(:/cn5X/images/laser_test.png);</string>
   <action name="actionCamera">
    <property name="text">
     <string>Camera</string>
+   </property>
+  </action>
+  <action name="actionHandeye">
+   <property name="text">
+    <string>Handeye Calibration</string>
    </property>
   </action>
  </widget>
