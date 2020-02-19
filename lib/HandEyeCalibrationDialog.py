@@ -305,7 +305,7 @@ class HandEyeCalibrationDialog(QDialog):
                 vec2 = Y_est[0:3,0:3] * camera_tfs[0:3,3,i] + Y_est[0:3,3]
                 vec2 = vec2 / np.linalg.norm(vec2)
                 scalar = vec1.T * vec2
-                trans_acc = abs(scalar) / len(robot_tfs)
+                trans_acc = trans_acc + abs(scalar) / len(robot_tfs)
             print(rot_acc)
             print(trans_acc)
         
