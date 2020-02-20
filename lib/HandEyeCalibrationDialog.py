@@ -1,5 +1,6 @@
 import os
 from PyQt5.QtWidgets import QDialog
+from PyQt5.QtCore import pyqtSlot
 from PyQt5 import uic
 
 from grblCom import grblCom
@@ -8,6 +9,7 @@ import time
 from scipy.spatial.transform import Rotation as R
 from robot_kins import CNC_5dof
 import random
+from cn5X_config import *
 
 import roslibpy
 import roslibpy.tf
@@ -50,7 +52,6 @@ class HandEyeCalibration:
         A_est = np.zeros([3*n,6])
         b_est = np.zeros([3*n,1])
         for ii in range(n-1):
-            Y = A[0:3,0:3,ii] * Rx * B[0:3,0:3,ii].T
             A_est[3*ii:3*ii+3,:] =np.concatenate((-A[0:3,0:3,ii], np.eye(3)), \
                 axis=1)
             b_est[3*ii:3*ii+3,:] = np.transpose(A[0:3,3,ii] - \
@@ -59,6 +60,7 @@ class HandEyeCalibration:
 
         t_est_np=np.linalg.lstsq(A_est,b_est,rcond=None)
         if t_est_np[2]<A_est.shape[1]: # A_est.shape[1]=6
+            print('Rank: ', t_est_np[2])
             print('Rank deficient')
         t_est=t_est_np[0]
         X_est[0:3,0:3]= X
@@ -130,6 +132,9 @@ class HandEyeCalibrationDialog(QDialog):
         super().__init__()
 
         self.__grblCom = grbl
+        # self.__grblCom.sig_ok.connect(self.on_sig_ok)
+        self.__grblCom.sig_status.connect(self.on_sig_status)
+
         self.ros = roslibpy.Ros(host='localhost', port=9090)
         self.ros.on_ready(lambda: print('ROS Connection (Handeye):', self.ros.is_connected))
 
@@ -146,8 +151,8 @@ class HandEyeCalibrationDialog(QDialog):
         self.__di.lineEdit_frame_robot_hand.textChanged.connect(self.updateListener)
 
         self.__di.lineEdit_frame_tool.textChanged.connect(self.updateListener)
-        self.__di.lineEdit_frame_marker1.textChanged.connect(self.updateListener)
-        self.__di.lineEdit_frame_marker2.textChanged.connect(self.updateListener)
+        self.__di.lineEdit_frame_marker_W.textChanged.connect(self.updateListener)
+        self.__di.lineEdit_frame_marker_T.textChanged.connect(self.updateListener)
 
         self.robot = CNC_5dof()
         self.updateListener() 
@@ -155,8 +160,14 @@ class HandEyeCalibrationDialog(QDialog):
         self.object_pose = None
         self.robot_poses = [] # list of [tx, ty, tz, qx, qy, qz, qw]
         # self.object_poses = [] # list of [tx, ty, tz, qx, qy, qz, qw]
-        self.marker1_poses = []
-        self.marker2_poses = []
+        self.marker_W_poses = []
+        self.marker_T_poses = []
+        self.num_recorded = 0
+        
+        # subscriber for aruco marker
+        self.aruco_sub = roslibpy.Topic(self.ros, "/markersAruco", 'marker_msgs/MarkerDetection')
+        self.aruco_sub.subscribe(self.makerCallback)
+        self.ready_to_record = False
 
         self.show()
 
@@ -167,20 +178,26 @@ class HandEyeCalibrationDialog(QDialog):
         # robot_fixed_frame = self.__di.lineEdit_frame_robot_base.text()
         # checkerboard_frame = self.__di.lineEdit_frame_object.text()
         tool_frame = self.__di.lineEdit_frame_tool.text()
-        marker1_frame = self.__di.lineEdit_frame_marker1.text()
-        marker2_frame = self.__di.lineEdit_frame_marker2.text()
+        marker_W_frame = self.__di.lineEdit_frame_marker_W.text()
+        marker_T_frame = self.__di.lineEdit_frame_marker_T.text()
         end_effector_frame = self.__di.lineEdit_frame_robot_hand.text()
 
         # self.tf_listener_robot = roslibpy.tf.TFClient(self.ros, robot_fixed_frame, angular_threshold=0.001, translation_threshold=0.0001)
         # self.tf_listener_camera = roslibpy.tf.TFClient(self.ros, camera_fixed_frame, angular_threshold=0.001, translation_threshold=0.0001)
         self.tf_listener_robot = roslibpy.tf.TFClient(self.ros, tool_frame, angular_threshold=0.001, translation_threshold=0.0001)
-        self.tf_listener_marker1 = roslibpy.tf.TFClient(self.ros, camera_fixed_frame, angular_threshold=0.001, translation_threshold=0.0001)
-        self.tf_listener_marker2 = roslibpy.tf.TFClient(self.ros, camera_fixed_frame, angular_threshold=0.001, translation_threshold=0.0001)
+        self.tf_listener_marker_W = roslibpy.tf.TFClient(self.ros, camera_fixed_frame, angular_threshold=0.001, translation_threshold=0.0001)
+        self.tf_listener_marker_T = roslibpy.tf.TFClient(self.ros, camera_fixed_frame, angular_threshold=0.001, translation_threshold=0.0001)
 
         # self.tf_listener_camera.subscribe(checkerboard_frame,self.update_camera_detection)
         self.tf_listener_robot.subscribe(end_effector_frame, self.update_robot_pose)
-        self.tf_listener_marker1.subscribe(marker1_frame,self.update_marker1_detection)
-        self.tf_listener_marker2.subscribe(marker2_frame,self.update_marker2_detection)
+        self.tf_listener_marker_W.subscribe(marker_W_frame,self.update_marker_W_detection)
+        self.tf_listener_marker_T.subscribe(marker_T_frame,self.update_marker_T_detection)
+
+    def makerCallback(self, data):
+        self.num_markers = len(data['markers'])
+        # print("number of markers:" + str(self.num_markers))
+        # print("markers:")
+        # print(data['markers'])
 
 
     def record_data(self):
@@ -195,29 +212,29 @@ class HandEyeCalibrationDialog(QDialog):
         # object_pose = []
         # object_pose.extend(object_tvec)
         # object_pose.extend(object_quat)
-        marker1_quat = [self.marker1_pose['rotation']['x'], self.marker1_pose['rotation']['y'], self.marker1_pose['rotation']['z'], self.marker1_pose['rotation']['w']]
-        marker1_tvec = [self.marker1_pose['translation']['x'], self.marker1_pose['translation']['y'], self.marker1_pose['translation']['z']]
-        marker1_pose = []
-        marker1_pose.extend(marker1_tvec)
-        marker1_pose.extend(marker1_quat)
-        marker2_quat = [self.marker2_pose['rotation']['x'], self.marker2_pose['rotation']['y'], self.marker2_pose['rotation']['z'], self.marker2_pose['rotation']['w']]
-        marker2_tvec = [self.marker2_pose['translation']['x'], self.marker2_pose['translation']['y'], self.marker2_pose['translation']['z']]
-        marker2_pose = []
-        marker2_pose.extend(marker2_tvec)
-        marker2_pose.extend(marker2_quat)
+        marker_W_quat = [self.marker_W_pose['rotation']['x'], self.marker_W_pose['rotation']['y'], self.marker_W_pose['rotation']['z'], self.marker_W_pose['rotation']['w']]
+        marker_W_tvec = [self.marker_W_pose['translation']['x'], self.marker_W_pose['translation']['y'], self.marker_W_pose['translation']['z']]
+        marker_W_pose = []
+        marker_W_pose.extend(marker_W_tvec)
+        marker_W_pose.extend(marker_W_quat)
+        marker_T_quat = [self.marker_T_pose['rotation']['x'], self.marker_T_pose['rotation']['y'], self.marker_T_pose['rotation']['z'], self.marker_T_pose['rotation']['w']]
+        marker_T_tvec = [self.marker_T_pose['translation']['x'], self.marker_T_pose['translation']['y'], self.marker_T_pose['translation']['z']]
+        marker_T_pose = []
+        marker_T_pose.extend(marker_T_tvec)
+        marker_T_pose.extend(marker_T_quat)
 
         print("robot")
         print(robot_pose)
         # print("checkerboard")
         # print(object_pose)
-        print("marker1")
-        print(marker1_pose)
-        print("marker2")
-        print(marker2_pose)
+        print("marker_W")
+        print(marker_W_pose)
+        print("marker_T")
+        print(marker_T_pose)
         self.robot_poses.append(robot_pose)
         # self.object_poses.append(object_pose)
-        self.marker1_poses.append(marker1_pose)
-        self.marker2_poses.append(marker2_pose)
+        self.marker_W_poses.append(marker_W_pose)
+        self.marker_T_poses.append(marker_T_pose)
 
         self.label_pose_count.setNum(len(self.robot_poses))
 
@@ -230,44 +247,78 @@ class HandEyeCalibrationDialog(QDialog):
         self.object_pose = data
 
 
-    def update_marker1_detection(self, data):
-        self.marker1_pose = data
+    def update_marker_W_detection(self, data):
+        self.marker_W_pose = data
 
 
-    def update_marker2_detection(self, data):
-        self.marker2_pose = data
+    def update_marker_T_detection(self, data):
+        self.marker_T_pose = data
 
 
     def automaticCalibration(self):
         num_poses = self.__di.spinBox_pose_count.value()
-        x_vals = np.linspace(-100, 0, num=num_poses)
-        y_vals =  np.linspace(-100, 0, num=num_poses)
-        z_vals = np.linspace(-10, 0, num=num_poses)
-        a_vals = np.linspace(-110, -60, num=num_poses)
-        b_vals = np.linspace(-360, 0, num=num_poses, endpoint=False)
-        random.shuffle(x_vals)
-        random.shuffle(y_vals)
-        random.shuffle(z_vals)
-        random.shuffle(a_vals)
-        random.shuffle(b_vals)
-        num_poses = len(z_vals)
+        self.x_vals = np.linspace(-170, 0, num=num_poses)
+        self.y_vals =  np.linspace(-130, 0, num=num_poses)
+        self.z_vals = np.linspace(-35, 0, num=num_poses)
+        self.a_vals = np.linspace(-90, -60, num=num_poses)
+        self.b_vals = np.linspace(-360, 0, num=num_poses, endpoint=False)
+        random.shuffle(self.x_vals)
+        random.shuffle(self.y_vals)
+        random.shuffle(self.z_vals)
+        random.shuffle(self.a_vals)
+        self.b_vals = np.flip(self.b_vals)
+        num_poses = len(self.z_vals)
+        
+        self.i_cmd = 0
+        self.__grblCom.gcodePush("G0 X{} Y{} Z{} A{} B{}".format(self.x_vals[self.i_cmd], self.y_vals[self.i_cmd], self.z_vals[self.i_cmd], self.a_vals[self.i_cmd], self.b_vals[self.i_cmd]))
+        self.ready_to_record = True
+        # i = 0
+        # self.ready_to_record = True
+        # while i < len(num_poses):
+        #     if self.ready_to_record:
+        #         self.__grblCom.gcodePush("G0 X{} Y{} Z{} A{} B{}".format(x_vals[i], y_vals[i], z_vals[i], a_vals[i], b_vals[i]))
+        #         self.ready_to_record = False
+        #         i = i + 1
+        # # M0, M2, M30: Program Pause and End
 
-        for i in range(num_poses):
-            self.ready_to_record = True
-            self.__grblCom.gcodePush("G0 X{} Y{} Z{} A{} B{}".format(x_vals[i], y_vals[i], z_vals[i], a_vals[i], b_vals[i]))
-            time.sleep(2) # wait till robot reaches position
-            self.record_data()
+    @pyqtSlot(str)
+    def on_sig_status(self, buff: str):
+        self.__grblStatus = buff[1:].split('|')[0]
+        if self.__grblStatus == GRBL_STATUS_IDLE and self.ready_to_record:
+            if self.num_markers == 2:
+                self.record_data()
+            self.i_cmd = self.i_cmd + 1
+            print ("i_cmd")
+            print (self.i_cmd)
 
-        self.calibrate()
+            if self.i_cmd == self.__di.spinBox_pose_count.value():
+                self.ready_to_record = False
+                self.calibrate()
+            else:
+                self.__grblCom.gcodePush("G0 X{} Y{} Z{} A{} B{}".format(self.x_vals[self.i_cmd], self.y_vals[self.i_cmd], self.z_vals[self.i_cmd], self.a_vals[self.i_cmd], self.b_vals[self.i_cmd]))
 
+    @pyqtSlot()
+    def on_sig_ok(self):
+        print("number of markers:" + str(self.num_markers))
+        if self.ready_to_record:
+            if self.num_markers == 2:
+                self.record_data()
+            self.i_cmd = self.i_cmd + 1
+            print ("i_cmd")
+            print (self.i_cmd)
+
+            if self.i_cmd == self.__di.spinBox_pose_count.value():
+                self.calibrate()
+            else:
+                self.__grblCom.gcodePush("G0 X{} Y{} Z{} A{} B{}".format(self.x_vals[self.i_cmd], self.y_vals[self.i_cmd], self.z_vals[self.i_cmd], self.a_vals[self.i_cmd], self.b_vals[self.i_cmd]))
 
     def delete_last_data(self):
         # TODO: edit function later
         if len(self.robot_poses) > 0:
             self.robot_poses = self.robot_poses[:-1]
             # self.camera_poses = self.camera_poses[:-1]
-            self.marker1_poses = self.marker1_poses[:-1]
-            self.marker2_poses = self.marker2_poses[:-1]
+            self.marker_W_poses = self.marker_W_poses[:-1]
+            self.marker_T_poses = self.marker_T_poses[:-1]
             num = len(self.robot_poses)
             self.__di.label_pose_count.setText(str(num))
 
@@ -276,6 +327,7 @@ class HandEyeCalibrationDialog(QDialog):
         if len(self.robot_poses) < 4:
             print("Please record at least 4 points.")
         else:
+            print('Number of data points: ', len(self.robot_poses))
             robot_tfs = []
             camera_tfs = []
             for i in range(len(self.robot_poses)):
@@ -283,12 +335,12 @@ class HandEyeCalibrationDialog(QDialog):
                 robot_tfs.append(np.asarray(robot_tf))
                 # camera_tf = HandEyeCalibrationDialog.convertToSE3(np.asarray(self.object_poses[i][3:]), np.asarray(self.object_poses[i][0:3]))
                 # camera_tfs.append(np.asarray(camera_tf))
-                marker1_tf = HandEyeCalibrationDialog.convertToSE3(np.asarray(self.marker1_poses[i][3:]), np.asarray(self.marker1_poses[i][0:3]))
-                marker2_tf = HandEyeCalibrationDialog.convertToSE3(np.asarray(self.marker2_poses[i][3:]), np.asarray(self.marker2_poses[i][0:3]))
+                marker_W_tf = HandEyeCalibrationDialog.convertToSE3(np.asarray(self.marker_W_poses[i][3:]), np.asarray(self.marker_W_poses[i][0:3]))
+                marker_T_tf = HandEyeCalibrationDialog.convertToSE3(np.asarray(self.marker_T_poses[i][3:]), np.asarray(self.marker_T_poses[i][0:3]))
                 camera_tf = np.zeros((4,4))
                 camera_tf[3,3] = 1
-                camera_tf[0:3,0:3] = marker2[0:3,0:3] * marker1[0:3,0:3].T
-                camera_tf[0:3,3] = marker2[0:3,0:3] * -marker1[0:3,0:3].T * marker1[0:3,3] + marker2[0:3,3]
+                camera_tf[0:3,0:3] = np.matmul(marker_T_tf[0:3,0:3], marker_W_tf[0:3,0:3].T)
+                camera_tf[0:3,3] = np.matmul(marker_T_tf[0:3,0:3], np.matmul(-marker_W_tf[0:3,0:3].T, marker_W_tf[0:3,3])) + marker_T_tf[0:3,3]
                 camera_tfs.append(np.asarray(camera_tf))
 
             A = np.array(HandEyeCalibrationDialog.format(robot_tfs))
@@ -299,16 +351,18 @@ class HandEyeCalibrationDialog(QDialog):
             # Accuracy Evaluation
             rot_acc = 0
             trans_acc = 0
+            robot_tfs = np.asarray(robot_tfs)
+            camera_tfs = np.asarray(camera_tfs)
             for i in range(len(robot_tfs)):
-                row_norm = np.linalg.norm(robot_tfs[0:3,0:3,i] * X_est[0:3,0:3] - Y_est[0:3,0:3] * camera_tfs[0:3,0:3,i], axis=1)
+                row_norm = np.linalg.norm(np.matmul(robot_tfs[i,0:3,0:3], self.X_est[0:3,0:3]) - np.matmul(Y_est[0:3,0:3], camera_tfs[i,0:3,0:3]), axis=1)
                 matrix_norm = np.linalg.norm(row_norm)**2
                 rot_acc = rot_acc + (1 - matrix_norm/8) / len(robot_tfs)
 
-                vec1 = robot_tfs[0:3,0:3,i] * X_est[0:3,3] + robot_tfs[0:3,3,i]
+                vec1 = np.matmul(robot_tfs[i,0:3,0:3], self.X_est[0:3,3]) + robot_tfs[i,0:3,3]
                 vec1 = vec1 / np.linalg.norm(vec1)
-                vec2 = Y_est[0:3,0:3] * camera_tfs[0:3,3,i] + Y_est[0:3,3]
+                vec2 = np.matmul(Y_est[0:3,0:3], camera_tfs[i,0:3,3]) + Y_est[0:3,3]
                 vec2 = vec2 / np.linalg.norm(vec2)
-                scalar = vec1.T * vec2
+                scalar = np.matmul(vec1.T, vec2)
                 trans_acc = trans_acc + abs(scalar) / len(robot_tfs)
             print(rot_acc)
             print(trans_acc)

@@ -24,9 +24,9 @@
    </property>
    <layout class="QGridLayout" name="gridLayout">
     <item row="1" column="1">
-     <widget class="QLineEdit" name="lineEdit_frame_marker1">
+     <widget class="QLineEdit" name="lineEdit_frame_marker_W">
       <property name="text">
-       <string>/t1</string>
+       <string>/t50</string>
       </property>
      </widget>
     </item>
@@ -38,16 +38,16 @@
      </widget>
     </item>
     <item row="2" column="1">
-     <widget class="QLineEdit" name="lineEdit_frame_marker2">
+     <widget class="QLineEdit" name="lineEdit_frame_marker_T">
       <property name="text">
-       <string>/t2</string>
+       <string>/t30</string>
       </property>
      </widget>
     </item>
     <item row="1" column="0">
      <widget class="QLabel" name="label_object">
       <property name="text">
-       <string>Marker 1 Frame</string>
+       <string>Marker W Frame</string>
       </property>
      </widget>
     </item>
@@ -82,7 +82,7 @@
     <item row="2" column="0">
      <widget class="QLabel" name="label_robot_base">
       <property name="text">
-       <string>Marker 2 Frame</string>
+       <string>Marker T Frame</string>
       </property>
      </widget>
     </item>
