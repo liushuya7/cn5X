@@ -141,9 +141,13 @@ class HandEyeCalibrationDialog(QDialog):
         self.__di.pushButton_complete.pressed.connect(self.calibrate)
         self.__di.pushButton_auto_start.pressed.connect(self.automaticCalibration)
         self.__di.lineEdit_frame_camera.textChanged.connect(self.updateListener)
-        self.__di.lineEdit_frame_object.textChanged.connect(self.updateListener)
-        self.__di.lineEdit_frame_robot_base.textChanged.connect(self.updateListener)
+        # self.__di.lineEdit_frame_object.textChanged.connect(self.updateListener)
+        # self.__di.lineEdit_frame_robot_base.textChanged.connect(self.updateListener)
         self.__di.lineEdit_frame_robot_hand.textChanged.connect(self.updateListener)
+
+        self.__di.lineEdit_frame_tool.textChanged.connect(self.updateListener)
+        self.__di.lineEdit_frame_marker1.textChanged.connect(self.updateListener)
+        self.__di.lineEdit_frame_marker2.textChanged.connect(self.updateListener)
 
         self.robot = CNC_5dof()
         self.updateListener() 
@@ -160,11 +164,11 @@ class HandEyeCalibrationDialog(QDialog):
     def updateListener(self):
         # get frame names from GUI, create two listener that subscribe to updated frames
         camera_fixed_frame = self.__di.lineEdit_frame_camera.text()
-        robot_fixed_frame = self.__di.lineEdit_frame_robot_base.text()
+        # robot_fixed_frame = self.__di.lineEdit_frame_robot_base.text()
         # checkerboard_frame = self.__di.lineEdit_frame_object.text()
         tool_frame = self.__di.lineEdit_frame_tool.text()
-        marker1_frame = self.__di_lineEdit_frame_marker1.text()
-        marker2_frame = self.__di_lineEdit_frame_marker2.text()
+        marker1_frame = self.__di.lineEdit_frame_marker1.text()
+        marker2_frame = self.__di.lineEdit_frame_marker2.text()
         end_effector_frame = self.__di.lineEdit_frame_robot_hand.text()
 
         # self.tf_listener_robot = roslibpy.tf.TFClient(self.ros, robot_fixed_frame, angular_threshold=0.001, translation_threshold=0.0001)

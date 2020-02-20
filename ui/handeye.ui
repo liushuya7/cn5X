@@ -23,6 +23,13 @@
     </rect>
    </property>
    <layout class="QGridLayout" name="gridLayout">
+    <item row="1" column="1">
+     <widget class="QLineEdit" name="lineEdit_frame_marker1">
+      <property name="text">
+       <string>/t1</string>
+      </property>
+     </widget>
+    </item>
     <item row="0" column="1">
      <widget class="QLineEdit" name="lineEdit_frame_camera">
       <property name="text">
@@ -30,45 +37,31 @@
       </property>
      </widget>
     </item>
-    <item row="2" column="0">
-     <widget class="QLabel" name="label_robot_base">
-      <property name="text">
-       <string>Robot Base/Fixed Frame</string>
-      </property>
-     </widget>
-    </item>
     <item row="2" column="1">
-     <widget class="QLineEdit" name="lineEdit_frame_robot_base">
+     <widget class="QLineEdit" name="lineEdit_frame_marker2">
       <property name="text">
-       <string>/y_box1</string>
-      </property>
-     </widget>
-    </item>
-    <item row="1" column="1">
-     <widget class="QLineEdit" name="lineEdit_frame_object">
-      <property name="text">
-       <string>/checkerboard</string>
+       <string>/t2</string>
       </property>
      </widget>
     </item>
     <item row="1" column="0">
      <widget class="QLabel" name="label_object">
       <property name="text">
-       <string>Object/Marker Frame</string>
+       <string>Marker 1 Frame</string>
+      </property>
+     </widget>
+    </item>
+    <item row="4" column="0">
+     <widget class="QLabel" name="label_end_effector">
+      <property name="text">
+       <string>End-Effector Frame</string>
       </property>
      </widget>
     </item>
     <item row="3" column="1">
-     <widget class="QLineEdit" name="lineEdit_frame_robot_hand">
+     <widget class="QLineEdit" name="lineEdit_frame_tool">
       <property name="text">
-       <string>/W</string>
-      </property>
-     </widget>
-    </item>
-    <item row="3" column="0">
-     <widget class="QLabel" name="label_end_effector">
-      <property name="text">
-       <string>End-Effector Frame</string>
+       <string>/T</string>
       </property>
      </widget>
     </item>
@@ -76,6 +69,27 @@
      <widget class="QLabel" name="label_camera">
       <property name="text">
        <string>Camera Frame</string>
+      </property>
+     </widget>
+    </item>
+    <item row="4" column="1">
+     <widget class="QLineEdit" name="lineEdit_frame_robot_hand">
+      <property name="text">
+       <string>/W</string>
+      </property>
+     </widget>
+    </item>
+    <item row="2" column="0">
+     <widget class="QLabel" name="label_robot_base">
+      <property name="text">
+       <string>Marker 2 Frame</string>
+      </property>
+     </widget>
+    </item>
+    <item row="3" column="0">
+     <widget class="QLabel" name="label_end_effector_2">
+      <property name="text">
+       <string>Robot Base/Fixed Frame</string>
       </property>
      </widget>
     </item>
