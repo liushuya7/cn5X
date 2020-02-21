@@ -7,3 +7,6 @@
 [submodule "ros/src/tools/marker_rviz_plugin"]
 	path = ros/src/tools/marker_rviz_plugin
 	url = https://github.com/weilunhuang-jhu/marker_rviz_plugin.git
+[submodule "grbl-Mega-5X"]
+	path = grbl-Mega-5X
+	url = https://github.com/liushuya7/grbl-Mega-5X.git
