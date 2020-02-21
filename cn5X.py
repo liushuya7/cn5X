@@ -51,6 +51,7 @@ from xml.dom.minidom import parse, Node, Element
 import cn5X_rc
 
 from Viewer import Viewer
+import roslibpy
 from JointStatePublisher import JointStatePublisher
 
 self_dir = os.path.dirname(os.path.realpath(__file__))
@@ -64,8 +65,13 @@ class GrblMainwindow(QtWidgets.QMainWindow):
   def __init__(self, parent=None):
     QtWidgets.QMainWindow.__init__(self, parent)
 
-    # ROS Joints States Publisher
-    self.joint_state_pub = JointStatePublisher()
+    # ROS bridge
+    self.ros = roslibpy.Ros(host='localhost', port=9090)
+    self.joint_state_pub = JointStatePublisher(self.ros)
+    try:
+      self.ros.run(timeout=0.1)
+    except:
+      self.ros.terminate()
     if not self.joint_state_pub.ros.is_connected:
       self.joint_state_pub = None
 
@@ -561,7 +567,7 @@ class GrblMainwindow(QtWidgets.QMainWindow):
   @pyqtSlot()
   def on_mnu_HandEyeCalibration(self):
     ''' HandeyeCalibration dialog'''
-    self.handeyecalibration_dialog = HandEyeCalibrationDialog(self.__grblCom)
+    self.handeyecalibration_dialog = HandEyeCalibrationDialog(self.__grblCom, self.ros, self.joint_state_pub)
 
   @pyqtSlot(str)
   def on_sig_config_changed(self, data: str):
@@ -1300,8 +1306,10 @@ class GrblMainwindow(QtWidgets.QMainWindow):
         print("No cut path!")
 
   def deleteAll(self):
-      self.vtk_viewer.deleteAllPoints()
+    self.vtk_viewer.deleteAllPoints()
 
+  def toggleTfPub(self, state):
+    self.grbl_tf_pub = state
 """******************************************************************"""
 
 if __name__ == '__main__':

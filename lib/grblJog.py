@@ -43,11 +43,10 @@ class grblJog():
   @pyqtSlot(cnQPushButton, QtGui.QMouseEvent, float, float)
   def on_jog(self, cnButton, e, jogDistance, maxTravel=0):
     '''
-    Deplacement relatif (G91) de "jogDistance" mm (G21) sur axe defini par le nom du bouton
-    si jogDistance != 0, si jogDistance = 0, déplacement en coordonnées machine jusqu'à
-    la course maxi.
+    Relative displacement (G91) of "jogDistance" mm (G21) on axis defined by the name of the button
+    if jogDistance! = 0, if jogDistance = 0, move in machine coordinates to the maximum stroke.
     '''
-    axis = cnButton.name()[-1]  # L'axe est definit par le dernier caractere du nom du Bouton
+    axis = cnButton.name()[-1]  # The axis is defined by the last character of the Button name
 
     if jogDistance != 0:
       if cnButton.name()[-5:-1] == "Plus":

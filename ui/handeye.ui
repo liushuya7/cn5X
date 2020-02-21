@@ -19,7 +19,7 @@
      <x>20</x>
      <y>20</y>
      <width>391</width>
-     <height>181</height>
+     <height>205</height>
     </rect>
    </property>
    <layout class="QGridLayout" name="gridLayout">
@@ -37,31 +37,31 @@
       </property>
      </widget>
     </item>
-    <item row="2" column="1">
-     <widget class="QLineEdit" name="lineEdit_frame_marker_T">
+    <item row="4" column="0">
+     <widget class="QLabel" name="label_robot_camera">
       <property name="text">
-       <string>/t30</string>
+       <string>Robot-Camera Fixed Frame</string>
       </property>
      </widget>
     </item>
     <item row="1" column="0">
-     <widget class="QLabel" name="label_object">
+     <widget class="QLabel" name="label_marker_W">
       <property name="text">
-       <string>Marker W Frame</string>
+       <string>Marker on W</string>
       </property>
      </widget>
     </item>
-    <item row="4" column="0">
-     <widget class="QLabel" name="label_end_effector">
-      <property name="text">
-       <string>End-Effector Frame</string>
-      </property>
-     </widget>
-    </item>
-    <item row="3" column="1">
-     <widget class="QLineEdit" name="lineEdit_frame_tool">
+    <item row="6" column="1">
+     <widget class="QLineEdit" name="lineEdit_frame_robot_T">
       <property name="text">
        <string>/T</string>
+      </property>
+     </widget>
+    </item>
+    <item row="5" column="1">
+     <widget class="QLineEdit" name="lineEdit_frame_robot_W">
+      <property name="text">
+       <string>/W</string>
       </property>
      </widget>
     </item>
@@ -72,24 +72,38 @@
       </property>
      </widget>
     </item>
-    <item row="4" column="1">
-     <widget class="QLineEdit" name="lineEdit_frame_robot_hand">
+    <item row="6" column="0">
+     <widget class="QLabel" name="label_robot_T">
       <property name="text">
-       <string>/W</string>
+       <string>Robot T Frame</string>
+      </property>
+     </widget>
+    </item>
+    <item row="5" column="0">
+     <widget class="QLabel" name="label_robot_W">
+      <property name="text">
+       <string>Robot W Frame</string>
       </property>
      </widget>
     </item>
     <item row="2" column="0">
-     <widget class="QLabel" name="label_robot_base">
+     <widget class="QLabel" name="label_marker_T">
       <property name="text">
-       <string>Marker T Frame</string>
+       <string>Marker on T</string>
       </property>
      </widget>
     </item>
-    <item row="3" column="0">
-     <widget class="QLabel" name="label_end_effector_2">
+    <item row="2" column="1">
+     <widget class="QLineEdit" name="lineEdit_frame_marker_T">
       <property name="text">
-       <string>Robot Base/Fixed Frame</string>
+       <string>/t30</string>
+      </property>
+     </widget>
+    </item>
+    <item row="4" column="1">
+     <widget class="QLineEdit" name="lineEdit_frame_robot_camera">
+      <property name="text">
+       <string>/y_box1</string>
       </property>
      </widget>
     </item>
@@ -99,7 +113,7 @@
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>210</y>
+     <y>230</y>
      <width>201</width>
      <height>111</height>
     </rect>
@@ -177,7 +191,7 @@
    <property name="geometry">
     <rect>
      <x>230</x>
-     <y>210</y>
+     <y>230</y>
      <width>181</width>
      <height>111</height>
     </rect>
