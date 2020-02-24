@@ -160,7 +160,7 @@
           <item>
            <widget class="QLabel" name="label_registration_result">
             <property name="text">
-             <string>Unknown</string>
+             <string>No Result Yet</string>
             </property>
            </widget>
           </item>

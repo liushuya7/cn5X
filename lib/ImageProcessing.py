@@ -10,7 +10,10 @@ class ImageProcessing(object):
         
         ret, labels = cv2.connectedComponents(img)
         array = np.matrix.flatten(labels)
-        max_label = np.bincount(array)[1::].argmax() + 1
+        # debug later
+        labels_counts_order_decreasing = np.flip(np.argsort(np.bincount(array)[1::], kind='stable'))
+        # max_label = np.bincount(array)[1::].argmax() + 1
+        max_label = labels_counts_order_decreasing[1] + 1
         for label in range(1, ret):
             if (label == max_label):
                 mask = np.array(labels, dtype=np.uint8)
@@ -20,7 +23,8 @@ class ImageProcessing(object):
 
     def thresholding(self, img):
         
-        ret1, thresh = cv2.threshold(img, 170, 255, cv2.THRESH_TOZERO)
+        ret1, thresh = cv2.threshold(img, 100, 255, cv2.THRESH_TOZERO)
+        # ret1, thresh = cv2.threshold(img, 170, 255, cv2.THRESH_TOZERO)
         gray = thresh
         binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
 
@@ -40,7 +44,7 @@ class ImageProcessing(object):
 
         #filter by area
         params.filterByArea = True
-        params.minArea = 30 
+        params.minArea = 1 #30 
         params.maxArea = 500
 
         # Set up the detector with default parameters
@@ -81,7 +85,7 @@ class ImageProcessing(object):
 
 
 def main():
-    file_name = "../img_test/color10.png"
+    file_name = "../img/color_08.png"
     img = cv2.imread(file_name)
     image_processor = ImageProcessing(img)
     feature_pionts, img_with_keypoints = image_processor.extractFeaturePoints()

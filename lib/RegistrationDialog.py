@@ -20,6 +20,7 @@ from compilOptions import grblCompilOptions
 self_dir = os.path.dirname(os.path.realpath(__file__))
 DEFAULT_PATH = os.path.join(self_dir, "../data")
 RED = (255,0,0)
+GREEN = (0,255,0)
 
 class Registration():
     def __init__(self, source, target):
@@ -62,16 +63,35 @@ class Registration():
         
         # parameters for icp
         #icp.DebugOn()
-        icp.SetMaximumNumberOfLandmarks(5)
-        icp.SetMaximumMeanDistance(0.0001)
-        icp.SetMaximumNumberOfIterations(20)
+        # icp.SetMaximumNumberOfLandmarks(100)
+        # icp.SetMaximumMeanDistance(0.0001)
+        icp.SetMaximumNumberOfIterations(100)
         icp.StartByMatchingCentroidsOn()
         icp.CheckMeanDistanceOn()
         icp.Modified()
-        if vtk.VTK_MAJOR_VERSION <= 5:
-            icp.Update()
+        icp.Update()
+        print("mean distance")
+        print(icp.GetMeanDistance())
+
+        # icpTransformFilter = vtk.vtkTransformPolyDataFilter()
+        # if vtk.VTK_MAJOR_VERSION <= 5:
+        #     icpTransformFilter.SetInput(self.source)
+        # else:
+        #     icpTransformFilter.SetInputData(self.source)
+
+        # icpTransformFilter.SetTransform(icp)
+        # icpTransformFilter.Update()
+
+        # transformedSource = icpTransformFilter.GetOutput()
+        # # ============ display transformed points ==============
+        # for index in range(6):
+        #     point = [0,0,0]
+        #     transformedSource.GetPoint(index, point)
+        #     print("transformed source point[%s]=%s" % (index,point))
 
         self.transformation_matrix = icp.GetMatrix()
+
+    def auxICP(self):
 
     def performLandmarkTransform(self):
 
@@ -120,6 +140,7 @@ class RegistrationDialog(QDialog):
         self.__di.pushButton_extract_features.pressed.connect(self.extractFeatures)
         self.__di.tableWidget_model.currentItemChanged.connect(self.magnifyItem)
         self.__di.pushButton_load_world_features.pressed.connect(self.loadWorldFeatures)
+        self.__di.pushButton_register.pressed.connect(self.register)
 
         self.robot = CNC_5dof()
         self.x = 0
@@ -205,13 +226,31 @@ class RegistrationDialog(QDialog):
                     source_data[row].append(float(self.tableWidget_model.item(row, col).text()))
 
         registration = Registration(source_data, target_data)
-        registration.performLandmarkTransform()
+        if len(source_data) == len(target_data):
+            registration.performLandmarkTransform()
+        else:
+            registration.performICP()
         self.transformation_matrix = registration.getTransformationMatrix()
         # display registration result in qt
         self.label_registration_result.setText(str(self.transformation_matrix))
 
-        if self.checkBox_save_to_file.isChecked():
-            self.saveData()
+        self.verifyRegistration(np.array(target_data))
+
+        # if self.checkBox_save_to_file.isChecked():
+        #     self.saveData()
+
+    def verifyRegistration(self, points):
+        # transform world points to model space by registration result, visualize transformed points in viewer
+        # points are 3D points of numpy array in shape (n,3)
+        # make points to shape (n,4)
+        num_pts = len(points)
+        points = np.concatenate((points, np.array([1.0]*num_pts).reshape((num_pts, 1))), axis=1)
+        points = np.matmul(np.linalg.inv(self.transformation_matrix), points.T)
+        for point in points.T:
+            point = point[:3]
+            print(point)
+            actor = self.viewer.createPointActor(point, color=GREEN)
+            self.viewer.addActor(actor)
 
     @pyqtSlot(int)
     def on_sig_alarm(self, alarmNum: int):
