@@ -300,7 +300,7 @@ class HandEyeCalibrationDialog(QDialog):
         if self.__grblStatus == GRBL_STATUS_IDLE and self.ready_to_record:
             if self.num_markers == 2:
                 self.recordData()
-
+                input("Press enter")
             if self.i_cmd == self.__di.spinBox_pose_count.value():
                 self.ready_to_record = False
                 self.calibrate()
@@ -383,7 +383,7 @@ class HandEyeCalibrationDialog(QDialog):
     def saveYML(self, file_name):
 
         s = cv2.FileStorage(file_name, cv2.FileStorage_WRITE)
-        s.write("framecount", len(self.robot_poses))
+        s.write("frameCount", len(self.robot_poses))
         for i in range(len(self.robot_poses)):
             marker_W_tf = HandEyeCalibration.convertToSE3(np.asarray(self.marker_W_poses[i][3:]), np.asarray(self.marker_W_poses[i][0:3])*1000)
             marker_T_tf = HandEyeCalibration.convertToSE3(np.asarray(self.marker_T_poses[i][3:]), np.asarray(self.marker_T_poses[i][0:3])*1000)
@@ -392,8 +392,8 @@ class HandEyeCalibrationDialog(QDialog):
             robot_tf = HandEyeCalibration.convertToSE3(np.asarray(self.robot_poses[i][3:]), np.asarray(self.robot_poses[i][0:3])*1000)
             frame_1 = "T1_"+str(i)
             frame_2 = "T2_"+str(i)
-            s.write(frame_1, camera_tf)
-            s.write(frame_2, robot_tf)
+            s.write(frame_1, robot_tf)
+            s.write(frame_2, camera_tf)
         s.release()
 
 

@@ -222,10 +222,10 @@
      </rect>
     </property>
     <property name="minimum">
-     <number>9</number>
+     <number>10</number>
     </property>
     <property name="maximum">
-     <number>30</number>
+     <number>100</number>
     </property>
    </widget>
    <widget class="QPushButton" name="pushButton_auto_start">
