@@ -7,30 +7,27 @@ class ImageProcessing(object):
         self.img = img 
 
     def extractROI(self, img):
-
+        
         ret, labels = cv2.connectedComponents(img)
-        countlist = [0 for i in range(ret)]
-        for column in labels:
-            for element in column:
-                if element > 0:
-                    countlist[element - 1] += 1
+        array = np.matrix.flatten(labels)
+        max_label = np.bincount(array)[1::].argmax() + 1
         for label in range(1, ret):
-            if (countlist[label - 1] > 30000):
+            if (label == max_label):
                 mask = np.array(labels, dtype=np.uint8)
                 mask[labels == label] = 255
                 mask[labels != label] = 0
         return mask
 
     def thresholding(self, img):
-
-        ret1, thresh = cv2.threshold(img, 100, 200, cv2.THRESH_TOZERO)
+        
+        ret1, thresh = cv2.threshold(img, 170, 255, cv2.THRESH_TOZERO)
         gray = thresh
         binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
 
         return binary
 
     def blobDetect(self, img):
-
+        #img = self.img
         # set up for blob detector
         params=cv2.SimpleBlobDetector_Params()
         # Change thresholds
@@ -43,7 +40,7 @@ class ImageProcessing(object):
 
         #filter by area
         params.filterByArea = True
-        params.minArea = 1 
+        params.minArea = 30 
         params.maxArea = 500
 
         # Set up the detector with default parameters
@@ -84,7 +81,13 @@ class ImageProcessing(object):
 
 
 def main():
-    pass # for testing code
+    file_name = "../img_test/color10.png"
+    img = cv2.imread(file_name)
+    image_processor = ImageProcessing(img)
+    feature_pionts, img_with_keypoints = image_processor.extractFeaturePoints()
+    cv2.imshow("", img_with_keypoints)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
 if __name__ == "__main__":
     main()
