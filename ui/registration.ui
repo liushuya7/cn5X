@@ -69,6 +69,13 @@
         </widget>
        </item>
        <item>
+        <widget class="QPushButton" name="pushButton_extract_features_world">
+         <property name="text">
+          <string>Extract World Features</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QTableWidget" name="tableWidget_world">
          <property name="selectionBehavior">
           <enum>QAbstractItemView::SelectRows</enum>

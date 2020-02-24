@@ -20,7 +20,7 @@
 ' along with this program.  If not, see <http://www.gnu.org/licenses/>.   '
 '                                                                         '
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
+import os
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QModelIndex, QItemSelectionModel
 from PyQt5.QtGui import QKeySequence, QStandardItemModel, QStandardItem
@@ -29,6 +29,10 @@ from cn5X_config import *
 from msgbox import *
 from grblCom import grblCom
 from Viewer import Viewer
+
+self_dir = os.path.dirname(os.path.realpath(__file__))
+MESH_PATH = os.path.join(self_dir, '../mesh')
+
 
 class gcodeFile(QObject):
   '''
@@ -275,7 +279,7 @@ class stlFile(QObject):
     # Displays the opening dialog
     opt = QtWidgets.QFileDialog.Options()
     opt |= QtWidgets.QFileDialog.DontUseNativeDialog
-    fileName = QtWidgets.QFileDialog.getOpenFileName(None, "Open a STL file", "../ppmd_ws/src/PPMD/model" ,"STL (*.stl)", options=opt)
+    fileName = QtWidgets.QFileDialog.getOpenFileName(None, "Open a STL file", MESH_PATH ,"STL (*.stl)", options=opt)
     return fileName
 
   def readFile(self, filePath: str):

@@ -6,6 +6,8 @@ import numpy as np
 
 MAGNIFY_RATIO = 3
 POINT_SIZE = 5
+RED = (255,0,0)
+GREEN = (255,0,0)
 
 class Viewer(QFrame):
 
@@ -80,34 +82,9 @@ class Viewer(QFrame):
                 self.axis_vector = picked_normal
                 self.machine_center = picked_point
             # add a point
-            # Create the geometry of a point (the coordinate)
-            points = vtk.vtkPoints()
-            p = list(picked_point)
-            # Create the topology of the point (a vertex)
-            vertices = vtk.vtkCellArray()
-            id = points.InsertNextPoint(p)
-            vertices.InsertNextCell(1)
-            vertices.InsertCellPoint(id)
-            # Create a polydata object
-            point = vtk.vtkPolyData()
-            # Set the points and vertices we created as the geometry and topology of the polydata
-            point.SetPoints(points)
-            point.SetVerts(vertices)
-
-            # Create a mapper
-            # Visualize
-            mapper = vtk.vtkPolyDataMapper()
-            if vtk.VTK_MAJOR_VERSION <= 5:
-                mapper.SetInput(point)
-            else:
-                mapper.SetInputData(point)
-            
-            actor = vtk.vtkActor()
-            actor.SetMapper(mapper)
-            actor.GetProperty().SetColor(1,0,0)
-            actor.GetProperty().SetPointSize(POINT_SIZE)
+            actor = self.createPointActor(picked_point, color=RED)
+            self.addActor(actor)
             self.points.append(actor)
-            self.renderer.AddActor(actor)
 
             # # debug
             # actor_collection = self.renderer.GetActors()
@@ -262,8 +239,12 @@ class Viewer(QFrame):
     def getCutPath(self):
         return self.cut_path
 
-    @staticmethod
-    def addPoint(point_coordinate, color):
+    def addActor(self, actor):
+        self.points.append(actor)
+        self.renderer.AddActor(actor)
+        self.update()
+
+    def createPointActor(self, point_coordinate, color):
         # Create the geometry of a point (the coordinate)
         points = vtk.vtkPoints()
         # Create the topology of the point (a vertex)

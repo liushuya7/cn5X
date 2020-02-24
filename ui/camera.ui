@@ -30,6 +30,13 @@
        <item>
         <layout class="QVBoxLayout" name="verticalLayout_3">
          <item>
+          <widget class="QLabel" name="label">
+           <property name="text">
+            <string>Operate RealSense Camera</string>
+           </property>
+          </widget>
+         </item>
+         <item>
           <widget class="QPushButton" name="pushButton_start_camera">
            <property name="text">
             <string>Start Camera</string>
@@ -64,6 +71,20 @@
        </item>
        <item>
         <layout class="QVBoxLayout" name="verticalLayout_4">
+         <item>
+          <widget class="QLabel" name="label_2">
+           <property name="text">
+            <string>3D Reconstruction</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="pushButton_automatic">
+           <property name="text">
+            <string>Automatic Reconstruction</string>
+           </property>
+          </widget>
+         </item>
          <item>
           <widget class="QPushButton" name="pushButton_match">
            <property name="text">

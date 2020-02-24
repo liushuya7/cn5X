@@ -17,6 +17,7 @@ import utils
 from CameraThread import CameraThread
 from ImageWindowThread import ImageWindowThread
 from TwoViewEstimate import TwoViewEstimate
+from ImageProcessing import ImageProcessing
 
 self_dir = os.path.dirname(os.path.realpath(__file__))
 SAVE_PATH = os.path.join(self_dir, '../img')
@@ -40,6 +41,7 @@ class CameraDialog(QDialog):
 		self.__dl.pushButton_match.clicked.connect(self.matchFeatures)
 		self.__dl.pushButton_close_windows.clicked.connect(self.closeCVWindows)
 		self.__dl.pushButton_reconstruct.clicked.connect(self.reconstructPoints)
+		self.__dl.pushButton_automatic.clicked.connect(self.automaticReconstruction)
 
 	def startVideo(self):
 		self.camera_thread = CameraThread()
@@ -159,3 +161,37 @@ class CameraDialog(QDialog):
 
 	def reconstructPoints(self):
 		self.two_view_estimate.estimate(self.window_threads[0].window.points_list, self.window_threads[1].window.points_list);
+
+	def automaticReconstruction(self):
+
+		# get image file names
+		file_filter = "png (*.png);;jpg (*.jpg);;PNG (*.PNG);;JPG (*.JPG)"
+		file_name = QFileDialog()
+		file_name.setFileMode(QFileDialog.ExistingFiles)
+		names, _ = file_name.getOpenFileNames(self, "Open files", SAVE_PATH, file_filter)
+		# store images and open ImageWindow
+		for name in names:
+			img_name = os.path.split(name)[1] # extract the tail part for window name
+			img = cv2.imread(name)
+			image_processor = ImageProcessing(img)
+			feature_points = image_processor.extractFeaturePoints()
+			print(feature_points)
+			# debug
+			self.imgs.append(img)
+
+		# debug
+		# preparation for two-view stereo
+		# img1 = self.imgs[0];
+		# img2 = self.imgs[1];
+		# img1_pose_id = 10;
+		# img2_pose_id = 11;
+		# # get camera poses from calibration result 
+		# H_board_to_cam_1 = get_pose_calib(calibration_result, img1_pose_id);
+		# H_board_to_cam_2 = get_pose_calib(calibration_result, img2_pose_id);
+
+		# self.two_view_estimate = TwoViewEstimate(img1, img2, calibration_result.mtx, calibration_result.dist, H_board_to_cam_1, H_board_to_cam_2);
+
+		# self.window_threads[0].window.img = self.two_view_estimate.img1_rectified
+		# self.window_threads[1].window.img = self.two_view_estimate.img2_rectified
+		# for thread in self.window_threads:
+		# 	thread.start()

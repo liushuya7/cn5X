@@ -17,6 +17,7 @@ from MeshProcessing import MeshProcessing
 from compilOptions import grblCompilOptions
 
 self_dir = os.path.dirname(os.path.realpath(__file__))
+RED = (255,0,0)
 
 class Registration():
     def __init__(self, source, target):
@@ -124,7 +125,11 @@ class RegistrationDialog(QDialog):
         self.joints = np.zeros((5,1))
 
         # mesh processing
-        self.mesh_processor = MeshProcessing(self.viewer.current_mesh_file)
+        if self.viewer.current_mesh_file:
+            self.mesh_processor = MeshProcessing(self.viewer.current_mesh_file)
+        else:
+            self.mesh_processor = None
+
         self.finished.connect(self.closeWindow)
         self.show()
 
@@ -154,9 +159,18 @@ class RegistrationDialog(QDialog):
         self.viewer.deleteSelectedPoint(current_row)
     
     def extractFeatures(self):
-        self.mesh_processor.extractFeaturePoints()
-        # render feature points in viewer
-
+        if not self.mesh_processor:
+            if not self.viewer.current_mesh_file:
+                print("Error: No mesh file in the viewer yet!")
+            else:
+                self.mesh_processor = MeshProcessing(self.viewer.current_mesh_file)
+        if self.mesh_processor:
+            feature_points = self.mesh_processor.extractFeaturePoints()
+            # render feature points in viewer
+            for point in feature_points:
+                actor = self.viewer.createPointActor(point, color=RED)
+                self.viewer.addActor(actor)
+                self.viewer.addPointToTable(point)
 
     def register(self):
         # get source points and target points from tablewidget_world and tablewidget_model 
