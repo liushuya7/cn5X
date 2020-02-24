@@ -5,8 +5,7 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
-        - /TF1
-      Splitter Ratio: 0.5
+      Splitter Ratio: 0.608069181
     Tree Height: 338
   - Class: rviz/Selection
     Name: Selection
@@ -130,37 +129,35 @@ Visualization Manager:
         base_link:
           Value: false
         camera_color_frame:
-          Value: true
+          Value: false
         camera_color_optical_frame:
           Value: true
         camera_depth_frame:
-          Value: true
+          Value: false
         camera_depth_optical_frame:
-          Value: true
+          Value: false
         camera_infra1_frame:
-          Value: true
+          Value: false
         camera_infra1_optical_frame:
-          Value: true
+          Value: false
         camera_infra2_frame:
-          Value: true
+          Value: false
         camera_infra2_optical_frame:
-          Value: true
+          Value: false
         camera_link:
-          Value: true
+          Value: false
         rotary_base:
           Value: false
         rotary_base_invisible:
           Value: false
         rotary_middle:
-          Value: true
-        t0:
-          Value: true
+          Value: false
         t30:
           Value: true
         t50:
           Value: true
         x_box:
-          Value: true
+          Value: false
         y_box1:
           Value: false
         y_box2:

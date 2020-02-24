@@ -3090,6 +3090,9 @@ color: rgb(0, 0, 63);</string>
                  <property name="text">
                   <string>ROS tf</string>
                  </property>
+                 <property name="checked">
+                  <bool>true</bool>
+                 </property>
                 </widget>
                </item>
                <item>

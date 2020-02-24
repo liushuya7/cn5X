@@ -1,0 +1,12 @@
+<launch>
+    <!-- roslibpy bridge -->
+    <include file="$(find laser_description)/launch/rviz_rosbridge.launch"/>
+
+    <!-- Realsense Camera -->
+    <include file="$(find realsense2_camera)/launch/rs_camera.launch"/>
+    <!-- tuw checkerboard pkg -->
+    <include file="$(find tuw_aruco)/launch/demo_single_marker_live.launch"/>
+
+    <!-- TF static broadcaster Handeye result -->
+    <node pkg="tf" type="static_transform_publisher" name="static_tf_ybox1_camera" args="-0.20424956  0.4104368   0.28634658  -0.00152344  0.98453149 -0.17437982  0.01694436 y_box1 camera_color_optical_frame 100" />
+</launch>
