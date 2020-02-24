@@ -147,6 +147,14 @@ class TwoViewEstimate(object):
 
         return pts_3d_reconstr.T;
 
+    def projectPoints(self, pts):
+        # 3D pts is in homogeneous coordinage of shape (n,4)
+        camera_matrix = np.concatenate((self.K, np.array([0,0,0]).reshape((3,1))), axis=1)
+        points2D = np.matmul(camera_matrix, pts.T)
+        points2D /= points2D[2, :]
+
+        return points2D
+
 
     def estimate(self, pts_1, pts_2):
         # F = self.findFundamentalMatrix();
@@ -161,6 +169,14 @@ class TwoViewEstimate(object):
             writer = csv.writer(stream, lineterminator='\n')
             for point in pts_3d:
                 writer.writerow(point[:3])
+        
+        # project points for verification
+        pts_2d = self.projectPoints(pts_3d)
+        for pt_2d in pts_2d.T:
+            print(pt_2d)
+            img = cv2.circle(self.img1, tuple(pt_2d.astype(np.int32)),3, color=(255,0,0), thickness=5, lineType=cv2.FILLED)
+        cv2.imwrite('test.png', img)
+
 
     def stereoRectify(self):
         (R, T) = self.findRandT();

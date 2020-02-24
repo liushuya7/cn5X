@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import time
 
 class ImageProcessing(object):
     def __init__(self, img):
@@ -53,20 +54,37 @@ class ImageProcessing(object):
         center_list = []
         for points in keypoints:
             center_list.append([points.pt[0], points.pt[1]])
-        print("number of feature points: " + str(len(center_list)))
-        print (center_list)
         # Draw detected blobs as red circles.
         # cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS ensures the size of the circle corresponds to the size of blob
-        im_with_keypoints = cv2.drawKeypoints(img, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        img_with_keypoints = cv2.drawKeypoints(img, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
-        return center_list
+        return center_list, img_with_keypoints
 
 
     def extractFeaturePoints(self):
 
         gray_img = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
-        binay_img = self.thresholding(gray_img)
-        roi_img = self.extractROI(binay_img)
-        feature_pionts = self.blobDetect(roi_img)
 
-        return feature_pionts
+        t0 = time.time()
+        binay_img = self.thresholding(gray_img)
+        t1 = time.time()
+        print("time for thresholding: " + str(t1-t0))
+
+        t0 = time.time()
+        roi_img = self.extractROI(binay_img)
+        t1 = time.time()
+        print("time for extracting ROI: " + str(t1-t0))
+
+        t0 = time.time()
+        feature_pionts, img_with_keypoints = self.blobDetect(roi_img)
+        t1 = time.time()
+        print("time for blob detection: " + str(t1-t0))
+
+        return feature_pionts, img_with_keypoints
+
+
+def main():
+    pass # for testing code
+
+if __name__ == "__main__":
+    main()
