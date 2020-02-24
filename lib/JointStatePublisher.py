@@ -4,14 +4,11 @@ import roslibpy
 import math, time
 
 class JointStatePublisher():
-    def __init__(self):
-        self.ros = roslibpy.Ros(host='localhost', port=9090)
-        self.ros.on_ready(lambda: print('ROS Connection (JointStatePublisher):', self.ros.is_connected))
+    def __init__(self, ros):
+        # self.ros = roslibpy.Ros(host='localhost', port=9090)
+        self.ros = ros
+        self.ros.on_ready(lambda: print('JointStatePublisher (ROS Connection):', self.ros.is_connected))
         self.pub = roslibpy.Topic(self.ros, 'joint_states', 'sensor_msgs/JointState')
-        try:
-            self.ros.run(timeout=0.1)
-        except:
-            self.ros.terminate()
 
     def publish(self, joint_names, joint_values_grbl):
         joint_values_ros = self.convertJointsRosFormat(joint_values_grbl)

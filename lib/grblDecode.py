@@ -128,7 +128,7 @@ class grblDecode(QObject):
           self.__mpos[I] = float(tblPos[I])
           self.__wpos[I] = float(tblPos[I]) - self.__wco[I]
         # Publish the joints to ROS
-        if self.joint_state_pub:
+        if self.joint_state_pub and self.ui.checkBox_tf.isChecked():
           self.joint_state_pub.publish(['X', 'Y', 'Z', 'A', 'B'], self.__mpos[:5])
         
         # Updates the UI

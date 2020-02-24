@@ -1,20 +1,24 @@
 import os
-from PyQt5.QtWidgets import QDialog
+from PyQt5.QtWidgets import QDialog, QFileDialog
 from PyQt5.QtCore import pyqtSlot
 from PyQt5 import uic
 
 from grblCom import grblCom
-import numpy as np
-import time
-from scipy.spatial.transform import Rotation as R
-from robot_kins import CNC_5dof
-import random
 from cn5X_config import *
+
+import numpy as np
+import cv2
+# import csv
+import pickle
+import yaml
+from scipy.spatial.transform import Rotation as R
+import random
 
 import roslibpy
 import roslibpy.tf
 
 self_dir = os.path.dirname(os.path.realpath(__file__))
+SAVE_PATH = os.path.join(self_dir, 'data')
 
 class HandEyeCalibration:
     @staticmethod
@@ -125,249 +129,6 @@ class HandEyeCalibration:
         ErrorStats[1]=np.std(Reg_error)
         return Y_est, ErrorStats
 
-
-class HandEyeCalibrationDialog(QDialog):
-
-    def __init__(self, grbl: grblCom):
-        super().__init__()
-
-        self.__grblCom = grbl
-        # self.__grblCom.sig_ok.connect(self.on_sig_ok)
-        self.__grblCom.sig_status.connect(self.on_sig_status)
-
-        self.ros = roslibpy.Ros(host='localhost', port=9090)
-        self.ros.on_ready(lambda: print('ROS Connection (Handeye):', self.ros.is_connected))
-
-        ui_dlgHandEyeCalibration = os.path.join(self_dir, '../ui/handeye.ui')
-        self.__di = uic.loadUi(ui_dlgHandEyeCalibration, self)
-
-        self.__di.pushButton_collect.clicked.connect(self.record_data)
-        self.__di.pushButton_undo.pressed.connect(self.delete_last_data)
-        self.__di.pushButton_complete.pressed.connect(self.calibrate)
-        self.__di.pushButton_auto_start.pressed.connect(self.automaticCalibration)
-        self.__di.lineEdit_frame_camera.textChanged.connect(self.updateListener)
-        # self.__di.lineEdit_frame_object.textChanged.connect(self.updateListener)
-        # self.__di.lineEdit_frame_robot_base.textChanged.connect(self.updateListener)
-        self.__di.lineEdit_frame_robot_hand.textChanged.connect(self.updateListener)
-
-        self.__di.lineEdit_frame_tool.textChanged.connect(self.updateListener)
-        self.__di.lineEdit_frame_marker_W.textChanged.connect(self.updateListener)
-        self.__di.lineEdit_frame_marker_T.textChanged.connect(self.updateListener)
-
-        self.robot = CNC_5dof()
-        self.updateListener() 
-        self.robot_pose = None
-        self.object_pose = None
-        self.robot_poses = [] # list of [tx, ty, tz, qx, qy, qz, qw]
-        # self.object_poses = [] # list of [tx, ty, tz, qx, qy, qz, qw]
-        self.marker_W_poses = []
-        self.marker_T_poses = []
-        self.num_recorded = 0
-        
-        # subscriber for aruco marker
-        self.aruco_sub = roslibpy.Topic(self.ros, "/markersAruco", 'marker_msgs/MarkerDetection')
-        self.aruco_sub.subscribe(self.makerCallback)
-        self.ready_to_record = False
-
-        self.show()
-
-
-    def updateListener(self):
-        # get frame names from GUI, create two listener that subscribe to updated frames
-        camera_fixed_frame = self.__di.lineEdit_frame_camera.text()
-        # robot_fixed_frame = self.__di.lineEdit_frame_robot_base.text()
-        # checkerboard_frame = self.__di.lineEdit_frame_object.text()
-        tool_frame = self.__di.lineEdit_frame_tool.text()
-        marker_W_frame = self.__di.lineEdit_frame_marker_W.text()
-        marker_T_frame = self.__di.lineEdit_frame_marker_T.text()
-        end_effector_frame = self.__di.lineEdit_frame_robot_hand.text()
-
-        # self.tf_listener_robot = roslibpy.tf.TFClient(self.ros, robot_fixed_frame, angular_threshold=0.001, translation_threshold=0.0001)
-        # self.tf_listener_camera = roslibpy.tf.TFClient(self.ros, camera_fixed_frame, angular_threshold=0.001, translation_threshold=0.0001)
-        self.tf_listener_robot = roslibpy.tf.TFClient(self.ros, tool_frame, angular_threshold=0.001, translation_threshold=0.0001)
-        self.tf_listener_marker_W = roslibpy.tf.TFClient(self.ros, camera_fixed_frame, angular_threshold=0.001, translation_threshold=0.0001)
-        self.tf_listener_marker_T = roslibpy.tf.TFClient(self.ros, camera_fixed_frame, angular_threshold=0.001, translation_threshold=0.0001)
-
-        # self.tf_listener_camera.subscribe(checkerboard_frame,self.update_camera_detection)
-        self.tf_listener_robot.subscribe(end_effector_frame, self.update_robot_pose)
-        self.tf_listener_marker_W.subscribe(marker_W_frame,self.update_marker_W_detection)
-        self.tf_listener_marker_T.subscribe(marker_T_frame,self.update_marker_T_detection)
-
-    def makerCallback(self, data):
-        self.num_markers = len(data['markers'])
-        # print("number of markers:" + str(self.num_markers))
-        # print("markers:")
-        # print(data['markers'])
-
-
-    def record_data(self):
-        # record each pose as [tx, ty, tz, qx, qy, qz, qw]
-        robot_quat = [self.robot_pose['rotation']['x'], self.robot_pose['rotation']['y'], self.robot_pose['rotation']['z'], self.robot_pose['rotation']['w']]
-        robot_tvec = [self.robot_pose['translation']['x'], self.robot_pose['translation']['y'], self.robot_pose['translation']['z']]
-        robot_pose = []
-        robot_pose.extend(robot_tvec)
-        robot_pose.extend(robot_quat)
-        # object_quat = [self.object_pose['rotation']['x'], self.object_pose['rotation']['y'], self.object_pose['rotation']['z'], self.object_pose['rotation']['w']]
-        # object_tvec = [self.object_pose['translation']['x'], self.object_pose['translation']['y'], self.object_pose['translation']['z']]
-        # object_pose = []
-        # object_pose.extend(object_tvec)
-        # object_pose.extend(object_quat)
-        marker_W_quat = [self.marker_W_pose['rotation']['x'], self.marker_W_pose['rotation']['y'], self.marker_W_pose['rotation']['z'], self.marker_W_pose['rotation']['w']]
-        marker_W_tvec = [self.marker_W_pose['translation']['x'], self.marker_W_pose['translation']['y'], self.marker_W_pose['translation']['z']]
-        marker_W_pose = []
-        marker_W_pose.extend(marker_W_tvec)
-        marker_W_pose.extend(marker_W_quat)
-        marker_T_quat = [self.marker_T_pose['rotation']['x'], self.marker_T_pose['rotation']['y'], self.marker_T_pose['rotation']['z'], self.marker_T_pose['rotation']['w']]
-        marker_T_tvec = [self.marker_T_pose['translation']['x'], self.marker_T_pose['translation']['y'], self.marker_T_pose['translation']['z']]
-        marker_T_pose = []
-        marker_T_pose.extend(marker_T_tvec)
-        marker_T_pose.extend(marker_T_quat)
-
-        print("robot")
-        print(robot_pose)
-        # print("checkerboard")
-        # print(object_pose)
-        print("marker_W")
-        print(marker_W_pose)
-        print("marker_T")
-        print(marker_T_pose)
-        self.robot_poses.append(robot_pose)
-        # self.object_poses.append(object_pose)
-        self.marker_W_poses.append(marker_W_pose)
-        self.marker_T_poses.append(marker_T_pose)
-
-        self.label_pose_count.setNum(len(self.robot_poses))
-
-
-    def update_robot_pose(self, data):
-        self.robot_pose = data
-
-
-    def update_camera_detection(self, data):
-        self.object_pose = data
-
-
-    def update_marker_W_detection(self, data):
-        self.marker_W_pose = data
-
-
-    def update_marker_T_detection(self, data):
-        self.marker_T_pose = data
-
-
-    def automaticCalibration(self):
-        num_poses = self.__di.spinBox_pose_count.value()
-        self.x_vals = np.linspace(-170, 0, num=num_poses)
-        self.y_vals =  np.linspace(-130, 0, num=num_poses)
-        self.z_vals = np.linspace(-35, 0, num=num_poses)
-        self.a_vals = np.linspace(-90, -60, num=num_poses)
-        self.b_vals = np.linspace(-360, 0, num=num_poses, endpoint=False)
-        random.shuffle(self.x_vals)
-        random.shuffle(self.y_vals)
-        random.shuffle(self.z_vals)
-        random.shuffle(self.a_vals)
-        self.b_vals = np.flip(self.b_vals)
-        num_poses = len(self.z_vals)
-        
-        self.i_cmd = 0
-        self.__grblCom.gcodePush("G0 X{} Y{} Z{} A{} B{}".format(self.x_vals[self.i_cmd], self.y_vals[self.i_cmd], self.z_vals[self.i_cmd], self.a_vals[self.i_cmd], self.b_vals[self.i_cmd]))
-        self.ready_to_record = True
-        # i = 0
-        # self.ready_to_record = True
-        # while i < len(num_poses):
-        #     if self.ready_to_record:
-        #         self.__grblCom.gcodePush("G0 X{} Y{} Z{} A{} B{}".format(x_vals[i], y_vals[i], z_vals[i], a_vals[i], b_vals[i]))
-        #         self.ready_to_record = False
-        #         i = i + 1
-        # # M0, M2, M30: Program Pause and End
-
-    @pyqtSlot(str)
-    def on_sig_status(self, buff: str):
-        self.__grblStatus = buff[1:].split('|')[0]
-        if self.__grblStatus == GRBL_STATUS_IDLE and self.ready_to_record:
-            if self.num_markers == 2:
-                self.record_data()
-            self.i_cmd = self.i_cmd + 1
-            print ("i_cmd")
-            print (self.i_cmd)
-
-            if self.i_cmd == self.__di.spinBox_pose_count.value():
-                self.ready_to_record = False
-                self.calibrate()
-            else:
-                self.__grblCom.gcodePush("G0 X{} Y{} Z{} A{} B{}".format(self.x_vals[self.i_cmd], self.y_vals[self.i_cmd], self.z_vals[self.i_cmd], self.a_vals[self.i_cmd], self.b_vals[self.i_cmd]))
-
-    @pyqtSlot()
-    def on_sig_ok(self):
-        print("number of markers:" + str(self.num_markers))
-        if self.ready_to_record:
-            if self.num_markers == 2:
-                self.record_data()
-            self.i_cmd = self.i_cmd + 1
-            print ("i_cmd")
-            print (self.i_cmd)
-
-            if self.i_cmd == self.__di.spinBox_pose_count.value():
-                self.calibrate()
-            else:
-                self.__grblCom.gcodePush("G0 X{} Y{} Z{} A{} B{}".format(self.x_vals[self.i_cmd], self.y_vals[self.i_cmd], self.z_vals[self.i_cmd], self.a_vals[self.i_cmd], self.b_vals[self.i_cmd]))
-
-    def delete_last_data(self):
-        # TODO: edit function later
-        if len(self.robot_poses) > 0:
-            self.robot_poses = self.robot_poses[:-1]
-            # self.camera_poses = self.camera_poses[:-1]
-            self.marker_W_poses = self.marker_W_poses[:-1]
-            self.marker_T_poses = self.marker_T_poses[:-1]
-            num = len(self.robot_poses)
-            self.__di.label_pose_count.setText(str(num))
-
-
-    def calibrate(self):
-        if len(self.robot_poses) < 4:
-            print("Please record at least 4 points.")
-        else:
-            print('Number of data points: ', len(self.robot_poses))
-            robot_tfs = []
-            camera_tfs = []
-            for i in range(len(self.robot_poses)):
-                robot_tf = HandEyeCalibrationDialog.convertToSE3(np.asarray(self.robot_poses[i][3:]), np.asarray(self.robot_poses[i][0:3]))
-                robot_tfs.append(np.asarray(robot_tf))
-                # camera_tf = HandEyeCalibrationDialog.convertToSE3(np.asarray(self.object_poses[i][3:]), np.asarray(self.object_poses[i][0:3]))
-                # camera_tfs.append(np.asarray(camera_tf))
-                marker_W_tf = HandEyeCalibrationDialog.convertToSE3(np.asarray(self.marker_W_poses[i][3:]), np.asarray(self.marker_W_poses[i][0:3]))
-                marker_T_tf = HandEyeCalibrationDialog.convertToSE3(np.asarray(self.marker_T_poses[i][3:]), np.asarray(self.marker_T_poses[i][0:3]))
-                camera_tf = np.zeros((4,4))
-                camera_tf[3,3] = 1
-                camera_tf[0:3,0:3] = np.matmul(marker_T_tf[0:3,0:3], marker_W_tf[0:3,0:3].T)
-                camera_tf[0:3,3] = np.matmul(marker_T_tf[0:3,0:3], np.matmul(-marker_W_tf[0:3,0:3].T, marker_W_tf[0:3,3])) + marker_T_tf[0:3,3]
-                camera_tfs.append(np.asarray(camera_tf))
-
-            A = np.array(HandEyeCalibrationDialog.format(robot_tfs))
-            B = np.array(HandEyeCalibrationDialog.format(camera_tfs))
-            self.X_est,Y_est,_,_ = HandEyeCalibration.pose_estimation(A,B)
-            print(self.X_est)
-
-            # Accuracy Evaluation
-            rot_acc = 0
-            trans_acc = 0
-            robot_tfs = np.asarray(robot_tfs)
-            camera_tfs = np.asarray(camera_tfs)
-            for i in range(len(robot_tfs)):
-                row_norm = np.linalg.norm(np.matmul(robot_tfs[i,0:3,0:3], self.X_est[0:3,0:3]) - np.matmul(Y_est[0:3,0:3], camera_tfs[i,0:3,0:3]), axis=1)
-                matrix_norm = np.linalg.norm(row_norm)**2
-                rot_acc = rot_acc + (1 - matrix_norm/8) / len(robot_tfs)
-
-                vec1 = np.matmul(robot_tfs[i,0:3,0:3], self.X_est[0:3,3]) + robot_tfs[i,0:3,3]
-                vec1 = vec1 / np.linalg.norm(vec1)
-                vec2 = np.matmul(Y_est[0:3,0:3], camera_tfs[i,0:3,3]) + Y_est[0:3,3]
-                vec2 = vec2 / np.linalg.norm(vec2)
-                scalar = np.matmul(vec1.T, vec2)
-                trans_acc = trans_acc + abs(scalar) / len(robot_tfs)
-            print(rot_acc)
-            print(trans_acc)
-        
-
     @staticmethod
     def convertToSE3(quat, tvec):
         """
@@ -381,13 +142,12 @@ class HandEyeCalibrationDialog(QDialog):
             tf: SE3 transformation (rotation + translation)
         """
         r = R.from_quat(quat)
-        r_mat = r.as_dcm()
+        r_mat = r.as_matrix()
         tvec = tvec.reshape((3,1))
         tf = np.concatenate((r_mat, tvec), axis=1)
         last_row = [[0, 0, 0, 1]]
         tf = np.concatenate((tf, last_row), axis=0)
         return tf
-
 
     @staticmethod
     def format(tfs):
@@ -411,3 +171,230 @@ class HandEyeCalibrationDialog(QDialog):
                 sub_list.append(subsub_list)
             A.append(sub_list)
         return A
+
+
+class HandEyeCalibrationDialog(QDialog):
+
+    def __init__(self, grbl: grblCom, ros, joint_state_pub = None):
+        super().__init__()
+
+        self.ros = ros
+        self.ros.on_ready(lambda: print('HandEye (ROS Connection):', self.ros.is_connected))
+
+        self.joint_state_pub = joint_state_pub
+
+        self.__grblCom = grbl
+        self.__grblCom.sig_status.connect(self.on_sig_status)
+        
+        ui_dlgHandEyeCalibration = os.path.join(self_dir, '../ui/handeye.ui')
+        self.__di = uic.loadUi(ui_dlgHandEyeCalibration, self)
+
+        self.__di.pushButton_collect.clicked.connect(self.recordData)
+        self.__di.pushButton_undo.pressed.connect(self.deleteLastData)
+        self.__di.pushButton_complete.pressed.connect(self.calibrate)
+        self.__di.pushButton_auto_start.pressed.connect(self.automaticCalibration)
+        self.__di.pushButton_save.pressed.connect(self.saveCalibration)
+
+        self.__di.lineEdit_frame_camera.textChanged.connect(self.updateListener)
+        self.__di.lineEdit_frame_robot_W.textChanged.connect(self.updateListener)
+        self.__di.lineEdit_frame_robot_T.textChanged.connect(self.updateListener)
+        self.__di.lineEdit_frame_marker_W.textChanged.connect(self.updateListener)
+        self.__di.lineEdit_frame_marker_T.textChanged.connect(self.updateListener)
+
+        self.updateListener()
+
+        self.robot_poses = [] # list of [tx, ty, tz, qx, qy, qz, qw]
+        self.marker_W_poses = []
+        self.marker_T_poses = []
+        
+        # subscriber for aruco marker
+        self.aruco_sub = roslibpy.Topic(self.ros, "/markersAruco", 'marker_msgs/MarkerDetection')
+        self.aruco_sub.subscribe(self.updateMarkerDetectionNum)
+        self.ready_to_record = False
+
+        self.show()
+
+
+    def updateListener(self):
+        # get frame names from GUI, create two listener that subscribe to updated frames
+        camera_frame = self.__di.lineEdit_frame_camera.text()
+        # checkerboard_frame = self.__di.lineEdit_frame_object.text()
+        marker_W_frame = self.__di.lineEdit_frame_marker_W.text()
+        marker_T_frame = self.__di.lineEdit_frame_marker_T.text()
+        work_frame = self.__di.lineEdit_frame_robot_W.text()
+        tool_frame = self.__di.lineEdit_frame_robot_T.text()
+
+        # self.tf_listener_robot = roslibpy.tf.TFClient(self.ros, robot_fixed_frame, angular_threshold=0.001, translation_threshold=0.0001)
+        # self.tf_listener_camera = roslibpy.tf.TFClient(self.ros, camera_frame, angular_threshold=0.001, translation_threshold=0.0001)
+        self.tf_listener_robot = roslibpy.tf.TFClient(self.ros, tool_frame, rate=100, angular_threshold=0.001, translation_threshold=0.0001)
+        self.tf_listener_marker_W = roslibpy.tf.TFClient(self.ros, camera_frame, rate=100, angular_threshold=0.001, translation_threshold=0.0001)
+        self.tf_listener_marker_T = roslibpy.tf.TFClient(self.ros, camera_frame, rate=100, angular_threshold=0.001, translation_threshold=0.0001)
+
+        self.tf_listener_robot.subscribe(work_frame, self.updateRobotPose)
+        self.tf_listener_marker_W.subscribe(marker_W_frame,self.updateMarkerW)
+        self.tf_listener_marker_T.subscribe(marker_T_frame,self.updateMarkerT)
+
+    def updateMarkerDetectionNum(self, data):
+        self.num_markers = len(data['markers'])
+
+    def updateRobotPose(self, data):
+        # update robot realtime pose
+        self.robot_rt_pose = data
+
+    def updateMarkerW(self, data):
+        self.marker_W_pose = data
+
+    def updateMarkerT(self, data):
+        self.marker_T_pose = data
+
+    def recordData(self):
+        # record each pose as [tx, ty, tz, qx, qy, qz, qw]
+        robot_quat = [self.robot_rt_pose['rotation']['x'], self.robot_rt_pose['rotation']['y'], self.robot_rt_pose['rotation']['z'], self.robot_rt_pose['rotation']['w']]
+        robot_tvec = [self.robot_rt_pose['translation']['x'], self.robot_rt_pose['translation']['y'], self.robot_rt_pose['translation']['z']]
+        robot_rt_pose = []
+        robot_rt_pose.extend(robot_tvec)
+        robot_rt_pose.extend(robot_quat)
+        marker_W_quat = [self.marker_W_pose['rotation']['x'], self.marker_W_pose['rotation']['y'], self.marker_W_pose['rotation']['z'], self.marker_W_pose['rotation']['w']]
+        marker_W_tvec = [self.marker_W_pose['translation']['x'], self.marker_W_pose['translation']['y'], self.marker_W_pose['translation']['z']]
+        marker_W_pose = []
+        marker_W_pose.extend(marker_W_tvec)
+        marker_W_pose.extend(marker_W_quat)
+        marker_T_quat = [self.marker_T_pose['rotation']['x'], self.marker_T_pose['rotation']['y'], self.marker_T_pose['rotation']['z'], self.marker_T_pose['rotation']['w']]
+        marker_T_tvec = [self.marker_T_pose['translation']['x'], self.marker_T_pose['translation']['y'], self.marker_T_pose['translation']['z']]
+        marker_T_pose = []
+        marker_T_pose.extend(marker_T_tvec)
+        marker_T_pose.extend(marker_T_quat)
+
+        print("robot")
+        print(robot_rt_pose)
+        print("marker_W")
+        print(marker_W_pose)
+        print("marker_T")
+        print(marker_T_pose)
+
+        self.robot_poses.append(robot_rt_pose)
+        self.marker_W_poses.append(marker_W_pose)
+        self.marker_T_poses.append(marker_T_pose)
+        self.label_pose_count.setNum(len(self.robot_poses))
+
+    def automaticCalibration(self):
+        # Generate random robot motions by some joint values
+        num_poses = self.__di.spinBox_pose_count.value()
+        x_vals = np.linspace(-170, 0, num=num_poses)
+        y_vals =  np.linspace(-130, 0, num=num_poses)
+        z_vals = np.linspace(-35, 0, num=num_poses)
+        a_vals = np.linspace(-90, -60, num=num_poses)
+        b_vals = np.flip(np.linspace(-360, 0, num=num_poses, endpoint=False))
+        random.shuffle(x_vals)
+        random.shuffle(y_vals)
+        random.shuffle(z_vals)
+        random.shuffle(a_vals)
+        self.motion_joints = np.transpose( np.stack((x_vals, y_vals, z_vals, a_vals, b_vals),axis=0) )
+        
+        self.i_cmd = 0 # motion command counter
+        self.ready_to_record = True
+
+    @pyqtSlot(str)
+    def on_sig_status(self, buff: str):
+        self.__grblStatus = buff[1:].split('|')[0]
+        if self.__grblStatus == GRBL_STATUS_IDLE and self.ready_to_record:
+            if self.num_markers == 2:
+                self.recordData()
+                input("Press enter")
+            if self.i_cmd == self.__di.spinBox_pose_count.value():
+                self.ready_to_record = False
+                self.calibrate()
+            else:
+                self.__grblCom.gcodePush("G0 X{} Y{} Z{} A{} B{}".format(*self.motion_joints[self.i_cmd]),COM_FLAG_NO_OK)
+                # Publish the joints to ROS
+                if self.joint_state_pub:
+                    self.joint_state_pub.publish(['X', 'Y', 'Z', 'A', 'B'], self.motion_joints[self.i_cmd])
+                self.i_cmd = self.i_cmd + 1
+
+    # TODO
+    def deleteLastData(self):
+        if len(self.robot_poses) > 0:
+            self.robot_poses = self.robot_poses[:-1]
+            # self.camera_poses = self.camera_poses[:-1]
+            self.marker_W_poses = self.marker_W_poses[:-1]
+            self.marker_T_poses = self.marker_T_poses[:-1]
+            num = len(self.robot_poses)
+            self.__di.label_pose_count.setText(str(num))
+
+
+    def calibrate(self):
+        if len(self.robot_poses) < 4:
+            print("Please record at least 4 points.")
+        else:
+            print('Number of data points: ', len(self.robot_poses))
+            robot_tfs = []
+            camera_tfs = []
+            for i in range(len(self.robot_poses)):
+                marker_W_tf = HandEyeCalibration.convertToSE3(np.asarray(self.marker_W_poses[i][3:]), np.asarray(self.marker_W_poses[i][0:3])*1000)
+                marker_T_tf = HandEyeCalibration.convertToSE3(np.asarray(self.marker_T_poses[i][3:]), np.asarray(self.marker_T_poses[i][0:3])*1000)
+                # camera_tf = np.eye(4)
+                camera_tf = np.matmul(np.linalg.inv(marker_T_tf), marker_W_tf)
+                camera_tfs.append(np.asarray(camera_tf))
+                robot_tf = HandEyeCalibration.convertToSE3(np.asarray(self.robot_poses[i][3:]), np.asarray(self.robot_poses[i][0:3])*1000)
+                robot_tfs.append(np.asarray(robot_tf))
+
+            A = np.array(HandEyeCalibration.format(robot_tfs))
+            B = np.array(HandEyeCalibration.format(camera_tfs))
+            self.X_est,Y_est,_,_ = HandEyeCalibration.pose_estimation(A,B)
+            print("Estimated X: ", self.X_est)
+            print("Estimated Y: ", Y_est)
+
+            # Accuracy Evaluation
+            rot_acc = 0
+            trans_acc = 0
+            robot_tfs = np.asarray(robot_tfs)
+            camera_tfs = np.asarray(camera_tfs)
+            for i in range(len(robot_tfs)):
+                row_norm = np.linalg.norm(np.matmul(robot_tfs[i,0:3,0:3], self.X_est[0:3,0:3]) - np.matmul(Y_est[0:3,0:3], camera_tfs[i,0:3,0:3]), axis=1)
+                matrix_norm = np.linalg.norm(row_norm)**2
+                rot_acc = rot_acc + (1 - matrix_norm/8) / len(robot_tfs)
+
+                vec1 = np.matmul(robot_tfs[i,0:3,0:3], self.X_est[0:3,3]) + robot_tfs[i,0:3,3]
+                vec1 = vec1 / np.linalg.norm(vec1)
+                vec2 = np.matmul(Y_est[0:3,0:3], camera_tfs[i,0:3,3]) + Y_est[0:3,3]
+                vec2 = vec2 / np.linalg.norm(vec2)
+                scalar = np.matmul(vec1.T, vec2)
+                trans_acc = trans_acc + abs(scalar) / len(robot_tfs)
+            print("Rotational accuracy: ", rot_acc)
+            print("Translational accuracy: ", trans_acc)
+        
+
+    def saveCalibration(self):
+        # create save folder if not existing yet
+        if not os.path.isdir(SAVE_PATH):
+            os.makedirs(SAVE_PATH)
+        file_name, _ = QFileDialog.getSaveFileName(self, 'Save File', directory=SAVE_PATH, filter="Pickle Files (*.p)")
+        if file_name != '':
+            file_name = str(file_name)
+            file_name_yml = os.path.splitext(file_name)[0] + '.yml'
+            self.saveYML(file_name_yml)
+            dbfile = open(file_name, 'wb')
+            pickle.dump(self.robot_poses, dbfile)
+            pickle.dump(self.marker_W_poses, dbfile)
+            pickle.dump(self.marker_T_poses, dbfile)
+            print("data saved!")
+            dbfile.close()
+    
+    def saveYML(self, file_name):
+
+        s = cv2.FileStorage(file_name, cv2.FileStorage_WRITE)
+        s.write("frameCount", len(self.robot_poses))
+        for i in range(len(self.robot_poses)):
+            marker_W_tf = HandEyeCalibration.convertToSE3(np.asarray(self.marker_W_poses[i][3:]), np.asarray(self.marker_W_poses[i][0:3])*1000)
+            marker_T_tf = HandEyeCalibration.convertToSE3(np.asarray(self.marker_T_poses[i][3:]), np.asarray(self.marker_T_poses[i][0:3])*1000)
+            # camera_tf = np.eye(4)
+            camera_tf = np.matmul(np.linalg.inv(marker_T_tf), marker_W_tf)
+            robot_tf = HandEyeCalibration.convertToSE3(np.asarray(self.robot_poses[i][3:]), np.asarray(self.robot_poses[i][0:3])*1000)
+            frame_1 = "T1_"+str(i)
+            frame_2 = "T2_"+str(i)
+            s.write(frame_1, robot_tf)
+            s.write(frame_2, camera_tf)
+        s.release()
+
+
+            

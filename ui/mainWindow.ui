@@ -3083,6 +3083,16 @@ color: rgb(0, 0, 63);</string>
                 </spacer>
                </item>
                <item>
+                <widget class="QCheckBox" name="checkBox_tf">
+                 <property name="layoutDirection">
+                  <enum>Qt::LeftToRight</enum>
+                 </property>
+                 <property name="text">
+                  <string>ROS tf</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
                 <widget class="QLabel" name="label_3">
                  <property name="text">
                   <string notr="true">Jog mm/min</string>
