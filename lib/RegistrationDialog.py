@@ -12,6 +12,7 @@ from qweditmask import qwEditMask
 import vtk
 import numpy as np
 from robot_kins import CNC_5dof
+from MeshProcessing import MeshProcessing
 
 from compilOptions import grblCompilOptions
 
@@ -113,6 +114,7 @@ class RegistrationDialog(QDialog):
         self.__di.pushButton_delete_selected_model_points.pressed.connect(self.deleteSelectedModelPoint)
         self.__di.pushButton_delete_selected_world_points.pressed.connect(self.deleteSelectedWorldPoint)
         self.__di.pushButton_undo.pressed.connect(self.undoModel)
+        self.__di.pushButton_extract_features.pressed.connect(self.extractFeatures)
         self.__di.tableWidget_model.currentItemChanged.connect(self.magnifyItem)
 
         self.robot = CNC_5dof()
@@ -121,6 +123,8 @@ class RegistrationDialog(QDialog):
         self.z = 0
         self.joints = np.zeros((5,1))
 
+        # mesh processing
+        self.mesh_processor = MeshProcessing(self.viewer.current_mesh_file)
         self.finished.connect(self.closeWindow)
         self.show()
 
@@ -148,6 +152,11 @@ class RegistrationDialog(QDialog):
     def deleteSelectedModelPoint(self):
         current_row = self.deleteSelectedTablePoint(self.tableWidget_model)
         self.viewer.deleteSelectedPoint(current_row)
+    
+    def extractFeatures(self):
+        self.mesh_processor.extractFeaturePoints()
+        # render feature points in viewer
+
 
     def register(self):
         # get source points and target points from tablewidget_world and tablewidget_model 

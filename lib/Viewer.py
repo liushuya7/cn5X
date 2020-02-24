@@ -33,6 +33,9 @@ class Viewer(QFrame):
         self.interactor = interactor
         self.render_window = render_window
 
+        # mesh file
+        self.current_mesh_file = None
+
         # Set up picker (ray-casting)
         self.picker_tag_id = None
         self.points = []
@@ -51,6 +54,7 @@ class Viewer(QFrame):
         self.interactor.Start()
 
     def loadModel(self, file_name):
+        self.current_mesh_file = file_name
         # Load mesh file
         reader = vtk.vtkSTLReader()
         reader.SetFileName(file_name)
@@ -257,6 +261,35 @@ class Viewer(QFrame):
 
     def getCutPath(self):
         return self.cut_path
+
+    @staticmethod
+    def addPoint(point_coordinate, color):
+        # Create the geometry of a point (the coordinate)
+        points = vtk.vtkPoints()
+        # Create the topology of the point (a vertex)
+        vertices = vtk.vtkCellArray()
+        id = points.InsertNextPoint(point_coordinate)
+        vertices.InsertNextCell(1)
+        vertices.InsertCellPoint(id)
+        # Create a polydata object
+        point = vtk.vtkPolyData()
+        # Set the points and vertices we created as the geometry and topology of the polydata
+        point.SetPoints(points)
+        point.SetVerts(vertices)
+
+        # Create a mapper
+        # Visualize
+        mapper = vtk.vtkPolyDataMapper()
+        if vtk.VTK_MAJOR_VERSION <= 5:
+            mapper.SetInput(point)
+        else:
+            mapper.SetInputData(point)
+        
+        actor = vtk.vtkActor()
+        actor.SetMapper(mapper)
+        actor.GetProperty().SetColor(color)
+        actor.GetProperty().SetPointSize(POINT_SIZE)
+        return actor
 
     def update(self):
         self.renderer.GetRenderWindow().Render()

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>358</width>
-    <height>600</height>
+    <width>697</width>
+    <height>937</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -103,6 +103,13 @@
         <widget class="QLabel" name="label_model_points">
          <property name="text">
           <string>Selected STL Model Points</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pushButton_extract_features">
+         <property name="text">
+          <string>Extract Features</string>
          </property>
         </widget>
        </item>

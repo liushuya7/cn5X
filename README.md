@@ -11,6 +11,20 @@ Nouveau panneau de contrôle Grbl 5/6 axes avec pour but d'implémenter toutes l
 
 ## Attention ! FOR IROS PROJECT !
 
+### Dependencies:
+* conda: conda-forge channel
+* Essential: vtk, pyqt5, opencv
+* Camera: pyrealsense (python=3.7) 
+* Automatic Registration: trimesh, scikit-learn, rtree
+* All in one:
+```
+conda create --name laser python=3.7 vtk opencv pyqt trimesh scikit-learn rtree 
+```
+```
+pip install pyrealsense2
+```
+
+
 ### handeye calibration package:
 * [tuw\_aruco](http://wiki.ros.org/tuw_aruco?distro=melodic)
 
