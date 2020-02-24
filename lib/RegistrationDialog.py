@@ -1,6 +1,6 @@
 import os
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, pyqtSlot
-from PyQt5.QtWidgets import QDialog, QAbstractButton, QDialogButtonBox, QCheckBox, QSpinBox, QDoubleSpinBox, QLineEdit, QTableWidgetItem
+from PyQt5.QtWidgets import QDialog, QAbstractButton, QDialogButtonBox, QCheckBox, QSpinBox, QDoubleSpinBox, QLineEdit, QTableWidgetItem, QFileDialog
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QValidator
 from PyQt5 import uic
 from cn5X_config import *
@@ -11,12 +11,14 @@ from qweditmask import qwEditMask
 # Registration
 import vtk
 import numpy as np
+import csv
 from robot_kins import CNC_5dof
 from MeshProcessing import MeshProcessing
 
 from compilOptions import grblCompilOptions
 
 self_dir = os.path.dirname(os.path.realpath(__file__))
+DEFAULT_PATH = os.path.join(self_dir, "../data")
 RED = (255,0,0)
 
 class Registration():
@@ -117,6 +119,7 @@ class RegistrationDialog(QDialog):
         self.__di.pushButton_undo.pressed.connect(self.undoModel)
         self.__di.pushButton_extract_features.pressed.connect(self.extractFeatures)
         self.__di.tableWidget_model.currentItemChanged.connect(self.magnifyItem)
+        self.__di.pushButton_load_world_features.pressed.connect(self.loadWorldFeatures)
 
         self.robot = CNC_5dof()
         self.x = 0
@@ -171,6 +174,21 @@ class RegistrationDialog(QDialog):
                 actor = self.viewer.createPointActor(point, color=RED)
                 self.viewer.addActor(actor)
                 self.viewer.addPointToTable(point)
+
+    def loadWorldFeatures(self):
+        file_name, _ = QFileDialog.getOpenFileName(self, 'Open File', directory=DEFAULT_PATH,filter="CSV files (*.csv);;Text files (*.txt)")
+        if file_name != '':
+            file_name = str(file_name)
+            with open(file_name, 'r') as stream:
+                reader = csv.reader(stream, delimiter=',')
+                data_type = None
+                for row in reader:
+                    rowPosition = self.tableWidget_world.rowCount()
+                    self.tableWidget_world.insertRow(rowPosition)
+                    self.tableWidget_world.setItem(rowPosition, 0, QTableWidgetItem(row[0]))
+                    self.tableWidget_world.setItem(rowPosition, 1, QTableWidgetItem(row[1]))
+                    self.tableWidget_world.setItem(rowPosition, 2, QTableWidgetItem(row[2]))
+
 
     def register(self):
         # get source points and target points from tablewidget_world and tablewidget_model 

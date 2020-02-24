@@ -203,8 +203,6 @@ class CameraDialog(QDialog):
 			# extract id of image 
 			img_id = int(img_name.split('.')[0].split('_')[-1])
 			img = cv2.imread(name)
-			thread = ImageWindowThread(img_name, img)
-			self.window_threads.append(thread)
 			self.imgs_key_to_id.append(img_id)
 			self.imgs[img_id] = img
 			self.poses[img_id] = get_pose_calib(calibration_result, img_id)
@@ -224,21 +222,18 @@ class CameraDialog(QDialog):
 		points_for_triangulation_2 = []
 		threshold = 2
 		for point in feature_points_1:
-			difference = abs(feature_points_2 - point)
-			potential_correspondence_id, _ = np.where(difference < threshold)
+			difference = abs(feature_points_2 - point)[:,1]
+			ret = np.where(difference < threshold)
+			potential_correspondence_id = ret[0]
 			if len(potential_correspondence_id) == 1:
 				# TODO: need to handle case for multiple potential_correspondences	
 				points_for_triangulation_1.append(point.tolist())
 				points_for_triangulation_2.append(feature_points_2[potential_correspondence_id].flatten().tolist())
 		points_for_triangulation_1 = np.array(points_for_triangulation_1)
 		points_for_triangulation_2 = np.array(points_for_triangulation_2)
+		# debug
 		print("pts1:")
 		print(points_for_triangulation_1)
 		print("pts2:")
 		print(points_for_triangulation_2)
 		self.reconstructPoints(points_for_triangulation_1, points_for_triangulation_2)
-
-		self.window_threads[0].window.img = img_with_keypoint_1
-		self.window_threads[1].window.img = img_with_keypoint_2
-		for thread in self.window_threads:
-			thread.start()

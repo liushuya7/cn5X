@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>697</width>
-    <height>937</height>
+    <width>341</width>
+    <height>816</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -69,9 +69,9 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="pushButton_extract_features_world">
+        <widget class="QPushButton" name="pushButton_load_world_features">
          <property name="text">
-          <string>Extract World Features</string>
+          <string>Load World Features</string>
          </property>
         </widget>
        </item>

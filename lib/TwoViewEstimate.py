@@ -1,7 +1,10 @@
 import cv2
-# from skimage.metrics import structural_similarity as ssim
+import os
 import numpy as np
 import csv
+
+self_dir = os.path.dirname(os.path.realpath(__file__))
+SAVE_PATH = os.path.join(self_dir, '../data')
 
 class TwoViewEstimate(object):
     def __init__(self, img1, img2, K, dist, camera_pose_1, camera_pose_2):
@@ -14,7 +17,7 @@ class TwoViewEstimate(object):
 
         shape = self.img1.shape;
         self.img_size = (shape[1],shape[0]);
-        self.P1, self.P2, self.img1_rectified, self.img2_rectified = self.stereoRectify();
+        self.P1, self.R1, self.P2, self.R2, self.img1_rectified, self.img2_rectified = self.stereoRectify();
         self.img1_matching = self.img1_rectified.copy();
         self.img2_matching = self.img2_rectified.copy();
 
@@ -147,14 +150,23 @@ class TwoViewEstimate(object):
 
         return pts_3d_reconstr.T;
 
+    def transformToCamera1(self, pts):
+        # 3D pts is in homogeneous coordinage of shape (n,4)
+        R_homogeneous = np.concatenate((self.R1, np.array([0,0,0]).reshape((3,1))), axis=1)
+        R_homogeneous = np.concatenate((R_homogeneous, np.array([0,0,0,1]).reshape((1,4))), axis=0)
+        transformed_pts = np.matmul(np.linalg.inv(R_homogeneous), pts.T)
+
+        return transformed_pts.T
+
+
     def projectPoints(self, pts):
         # 3D pts is in homogeneous coordinage of shape (n,4)
         camera_matrix = np.concatenate((self.K, np.array([0,0,0]).reshape((3,1))), axis=1)
         points2D = np.matmul(camera_matrix, pts.T)
+        # points2D = np.matmul(self.P1, pts.T)
         points2D /= points2D[2, :]
 
         return points2D
-
 
     def estimate(self, pts_1, pts_2):
         # F = self.findFundamentalMatrix();
@@ -162,20 +174,24 @@ class TwoViewEstimate(object):
         # return (L, point1, point2)
 
         pts_3d = self.triangulation(self.P1, self.P2, np.array(pts_1), np.array(pts_2));
-        print("3d:")
-        print(pts_3d);
-        points_file = "points_3d_stereo.csv"
+        pts_3d = self.transformToCamera1(pts_3d)
+        points_file = os.path.join(SAVE_PATH, "points_3d_stereo.csv")
+        # check save path
+        if not os.path.isdir(SAVE_PATH):
+            os.makedirs(SAVE_PATH, exist_ok=True)
         with open(points_file, 'wt') as stream:
             writer = csv.writer(stream, lineterminator='\n')
             for point in pts_3d:
                 writer.writerow(point[:3])
         
-        # project points for verification
+        # # project points for verification
         pts_2d = self.projectPoints(pts_3d)
+        img_projected = self.img1.copy()
         for pt_2d in pts_2d.T:
-            print(pt_2d)
-            img = cv2.circle(self.img1, tuple(pt_2d.astype(np.int32)),3, color=(255,0,0), thickness=5, lineType=cv2.FILLED)
-        cv2.imwrite('test.png', img)
+            pt_2d = pt_2d[:2] 
+            img = cv2.circle(img_projected, tuple(pt_2d.astype(np.int32)),3, color=(255,0,0), thickness=5, lineType=cv2.FILLED)
+        cv2.imwrite('img1.png', self.img1)
+        cv2.imwrite('project_to_img1.png', img)
 
 
     def stereoRectify(self):
@@ -187,7 +203,7 @@ class TwoViewEstimate(object):
         img1_rectified = cv2.remap(self.img1, map_x_1, map_y_1, cv2.INTER_LANCZOS4);
         img2_rectified = cv2.remap(self.img2, map_x_2, map_y_2, cv2.INTER_LANCZOS4);
 
-        return (P1, P2, img1_rectified, img2_rectified);
+        return (P1, R1, P2, R2, img1_rectified, img2_rectified);
 
     def skew(self, vector):
         vector_temp = vector.flatten()
