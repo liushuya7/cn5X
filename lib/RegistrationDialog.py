@@ -19,6 +19,7 @@ from compilOptions import grblCompilOptions
 
 self_dir = os.path.dirname(os.path.realpath(__file__))
 DEFAULT_PATH = os.path.join(self_dir, "../data")
+DATA_FILTER = "CSV files (*.csv);;Text files (*.txt)"
 RED = (255,0,0)
 GREEN = (0,255,0)
 
@@ -91,7 +92,7 @@ class Registration():
 
         self.transformation_matrix = icp.GetMatrix()
 
-    def auxICP(self):
+    # def auxICP(self):
 
     def performLandmarkTransform(self):
 
@@ -140,7 +141,8 @@ class RegistrationDialog(QDialog):
         self.__di.pushButton_extract_features.pressed.connect(self.extractFeatures)
         self.__di.tableWidget_model.currentItemChanged.connect(self.magnifyItem)
         self.__di.pushButton_load_world_features.pressed.connect(self.loadWorldFeatures)
-        self.__di.pushButton_register.pressed.connect(self.register)
+        self.__di.pushButton_register_landmark.pressed.connect(self.registerLandmarks)
+        self.__di.pushButton_register_icp.pressed.connect(self.registerICP)
 
         self.robot = CNC_5dof()
         self.x = 0
@@ -197,9 +199,9 @@ class RegistrationDialog(QDialog):
                 self.viewer.addPointToTable(point)
 
     def loadWorldFeatures(self):
-        file_name, _ = QFileDialog.getOpenFileName(self, 'Open File', directory=DEFAULT_PATH,filter="CSV files (*.csv);;Text files (*.txt)")
-        if file_name != '':
-            file_name = str(file_name)
+        file_name, _ = QFileDialog.getOpenFileName(self, 'Open File', directory=DEFAULT_PATH,filter=DATA_FILTER)
+        print(type(file_name))
+        if os.path.splitext(file_name)[1] in DATA_FILTER:
             with open(file_name, 'r') as stream:
                 reader = csv.reader(stream, delimiter=',')
                 data_type = None
@@ -211,7 +213,37 @@ class RegistrationDialog(QDialog):
                     self.tableWidget_world.setItem(rowPosition, 2, QTableWidgetItem(row[2]))
 
 
-    def register(self):
+    def registerLandmarks(self):
+        # get source points and target points from tablewidget_world and tablewidget_model 
+        target_data = []
+        for row in range(self.tableWidget_world.rowCount()):
+            target_data.append([])
+            for col in range(self.tableWidget_world.columnCount()):
+                    target_data[row].append(float(self.tableWidget_world.item(row, col).text()))
+
+        source_data = []
+        for row in range(self.tableWidget_model.rowCount()):
+            source_data.append([])
+            for col in range(self.tableWidget_model.columnCount()):
+                    source_data[row].append(float(self.tableWidget_model.item(row, col).text()))
+
+        # take correspondence source and target data
+        num_valid_data = min(len(source_data), len(target_data))
+        source_data = source_data[:num_valid_data]
+        target_data = target_data[:num_valid_data]
+
+        registration = Registration(source_data, target_data)
+        registration.performLandmarkTransform()
+        self.transformation_matrix = registration.getTransformationMatrix()
+        # display registration result in qt
+        self.label_registration_result.setText(str(self.transformation_matrix))
+
+        self.verifyRegistration(np.array(target_data))
+
+        if self.checkBox_save_to_file.isChecked():
+            self.saveData()
+
+    def registerICP(self):
         # get source points and target points from tablewidget_world and tablewidget_model 
         target_data = []
         for row in range(self.tableWidget_world.rowCount()):
@@ -226,18 +258,15 @@ class RegistrationDialog(QDialog):
                     source_data[row].append(float(self.tableWidget_model.item(row, col).text()))
 
         registration = Registration(source_data, target_data)
-        if len(source_data) == len(target_data):
-            registration.performLandmarkTransform()
-        else:
-            registration.performICP()
+        registration.performICP()
         self.transformation_matrix = registration.getTransformationMatrix()
         # display registration result in qt
         self.label_registration_result.setText(str(self.transformation_matrix))
 
         self.verifyRegistration(np.array(target_data))
 
-        # if self.checkBox_save_to_file.isChecked():
-        #     self.saveData()
+        if self.checkBox_save_to_file.isChecked():
+            self.saveData()
 
     def verifyRegistration(self, points):
         # transform world points to model space by registration result, visualize transformed points in viewer
@@ -251,6 +280,36 @@ class RegistrationDialog(QDialog):
             print(point)
             actor = self.viewer.createPointActor(point, color=GREEN)
             self.viewer.addActor(actor)
+
+    def saveData(self):
+        file_name, _ = QFileDialog.getSaveFileName(self, 'Save File', directory=DEFAULT_PATH,filter=DATA_FILTER)
+        if os.path.splitext(file_name)[1] in DATA_FILTER:
+            with open(file_name, 'wt') as stream:
+                writer = csv.writer(stream, lineterminator='\n')
+                # save table model
+                writer.writerow("M")
+                for row in range(self.tableWidget_model.rowCount()):
+                    row_data = []
+                    for column in range(self.tableWidget_model.columnCount()):
+                        item = self.tableWidget_model.item(row, column).text()
+                        row_data.append(item)
+                    writer.writerow(row_data)
+                # save table world 
+                writer.writerow("W")
+                for row in range(self.tableWidget_world.rowCount()):
+                    row_data = []
+                    for column in range(self.tableWidget_world.columnCount()):
+                        item = self.tableWidget_world.item(row, column).text()
+                        row_data.append(item)
+                    writer.writerow(row_data)
+
+                # save registration result
+                writer.writerow("H")
+                for i in range(4):
+                    row = []
+                    for j in range(4):
+                        row.append(self.transformation_matrix[i,j])
+                    writer.writerow(row)
 
     @pyqtSlot(int)
     def on_sig_alarm(self, alarmNum: int):

@@ -105,23 +105,17 @@ class CameraDialog(QDialog):
 		# store images and open ImageWindow
 		for name in names:
 			img_name = os.path.split(name)[1] # extract the tail part for window name
+			img_id = int(img_name.split('.')[0].split('_')[-1])
 			img = cv2.imread(name)
-			# debug
-			self.imgs.append(img)
-
+			self.imgs_key_to_id.append(img_id)
+			self.imgs[img_id] = img
+			self.poses[img_id] = get_pose_calib(calibration_result, img_id)
 			thread = ImageWindowThread(img_name, img)
 			self.window_threads.append(thread)
 
-		# preparation for two-view stereo
-		img1 = self.imgs[0];
-		img2 = self.imgs[1];
-		img1_pose_id = 10;
-		img2_pose_id = 11;
-		# get camera poses from calibration result 
-		H_board_to_cam_1 = get_pose_calib(calibration_result, img1_pose_id);
-		H_board_to_cam_2 = get_pose_calib(calibration_result, img2_pose_id);
-
-		self.two_view_estimate = TwoViewEstimate(img1, img2, calibration_result.mtx, calibration_result.dist, H_board_to_cam_1, H_board_to_cam_2);
+		self.two_view_estimate = TwoViewEstimate(self.imgs[self.imgs_key_to_id[0]], self.imgs[self.imgs_key_to_id[1]],\
+			 									calibration_result.mtx, calibration_result.dist,\
+												self.poses[self.imgs_key_to_id[0]], self.poses[self.imgs_key_to_id[1]])
 
 		self.window_threads[0].window.img = self.two_view_estimate.img1_rectified
 		self.window_threads[1].window.img = self.two_view_estimate.img2_rectified
@@ -166,6 +160,7 @@ class CameraDialog(QDialog):
 			self.two_view_estimate.estimate(self.window_threads[0].window.points_list, self.window_threads[1].window.points_list);
 		else:
 			self.two_view_estimate.estimate(pts1, pts2)
+		print("Reconstructed points are saved in /data")
 
 	def automaticReconstruction(self):
 		

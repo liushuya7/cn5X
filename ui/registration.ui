@@ -178,9 +178,16 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="pushButton_register">
+        <widget class="QPushButton" name="pushButton_register_icp">
          <property name="text">
-          <string>Register</string>
+          <string>ICP Registration</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pushButton_register_landmark">
+         <property name="text">
+          <string>Landmark Register</string>
          </property>
         </widget>
        </item>
