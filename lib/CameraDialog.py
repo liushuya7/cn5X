@@ -10,9 +10,6 @@ import numpy as np
 # debug
 import pickle
 import sys
-sys.path.append("calibration_tool/")
-from Camera_Calibration import Camera_Calibration
-import utils
 
 from CameraThread import CameraThread
 from ImageWindowThread import ImageWindowThread
