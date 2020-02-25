@@ -38,9 +38,9 @@
      </widget>
     </item>
     <item row="4" column="0">
-     <widget class="QLabel" name="label_robot_camera">
+     <widget class="QLabel" name="label_robot_base_link">
       <property name="text">
-       <string>Robot-Camera Fixed Frame</string>
+       <string>Robot Base Link</string>
       </property>
      </widget>
     </item>
@@ -75,14 +75,14 @@
     <item row="6" column="0">
      <widget class="QLabel" name="label_robot_T">
       <property name="text">
-       <string>Robot T Frame</string>
+       <string>Robot T</string>
       </property>
      </widget>
     </item>
     <item row="5" column="0">
      <widget class="QLabel" name="label_robot_W">
       <property name="text">
-       <string>Robot W Frame</string>
+       <string>Robot W</string>
       </property>
      </widget>
     </item>
@@ -101,7 +101,7 @@
      </widget>
     </item>
     <item row="4" column="1">
-     <widget class="QLineEdit" name="lineEdit_frame_robot_camera">
+     <widget class="QLineEdit" name="lineEdit_frame_base_link">
       <property name="text">
        <string>/y_box1</string>
       </property>
@@ -246,7 +246,7 @@
    <property name="geometry">
     <rect>
      <x>30</x>
-     <y>340</y>
+     <y>350</y>
      <width>89</width>
      <height>25</height>
     </rect>

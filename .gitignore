@@ -110,3 +110,6 @@ cn5X.geany
 build/
 devel/
 logs/
+
+.vscode/
+data/

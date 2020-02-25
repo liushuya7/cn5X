@@ -454,12 +454,12 @@ class GrblMainwindow(QtWidgets.QMainWindow):
         self.ui.mnu_GrblConfig.setEnabled(True)
       else:
         self.ui.mnu_GrblConfig.setEnabled(False)
-      self.ui.registration.setEnabled(True)
+      self.ui.actionRegistration.setEnabled(True)
     else:
       self.ui.mnu_MPos.setEnabled(False)
       self.ui.mnu_WPos.setEnabled(False)
       self.ui.mnu_GrblConfig.setEnabled(False)
-      self.ui.registration.setEnabled(False)
+      self.ui.actionRegistration.setEnabled(False)
 
   @pyqtSlot()
   def on_mnuAppOpenStl(self):
@@ -569,7 +569,7 @@ class GrblMainwindow(QtWidgets.QMainWindow):
   @pyqtSlot()
   def on_mnu_HandEyeCalibration(self):
     ''' HandeyeCalibration dialog'''
-    self.handeyecalibration_dialog = HandEyeCalibrationDialog(self.__grblCom, self.ros, self.joint_state_pub)
+    self.handeyecalibration_dialog = HandEyeCalibrationDialog(self.__grblCom, self.ros)
 
   def on_mnu_Camera(self):
     ''' Camera dialog'''
