@@ -4,7 +4,7 @@
   <xacro:property name="metal_plate_length" value="0.43"/>
   <xacro:property name="metal_plate_width" value="0.20"/>
   <xacro:property name="metal_plate_to_rotary_center_height" value="0.080"/>
-  <xacro:property name="rotary_center_to_rotary_top" value="0.13145"/>
+  <xacro:property name="rotary_center_to_rotary_top" value="0.11045"/>
   <xacro:property name="rotary_center_to_linear_stage_x" value="0.1845"/>
   <xacro:property name="rotary_center_to_linear_stage_y" value="-0.2653"/>
   <xacro:property name="rotary_center_to_linear_stage_z" value="0.2426"/>
