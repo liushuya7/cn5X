@@ -95,7 +95,7 @@ class MeshProcessing(object):
         locations, index_ray, index_tri = self.mesh.ray.intersects_location(projected_points, normals, multiple_hits=False)
         potential_vertices_raycasting_order = potential_vertices[index_ray]
         difference = np.linalg.norm(potential_vertices_raycasting_order - locations, axis=1)
-        desired_points = potential_vertices_raycasting_order[np.where(difference > 0.1)]
+        desired_points = potential_vertices_raycasting_order[np.where(difference > 0.5)] # TODO: find a threshold for thickness
         t1 = time.time()
         print("time for extracting points by ray casting: " + str(t1-t0))
 

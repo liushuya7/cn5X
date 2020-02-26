@@ -30,11 +30,12 @@ class Registration():
         
         self.source_numpy = np.array(source)
         self.target_numpy = np.array(target)
+        self.initializeSourceAndTarget(source, target)
 
+    def initializeSourceAndTarget(self, source, target):
         # create source vtkpolydata        
         sourcePoints = vtk.vtkPoints()
         sourceVertices = vtk.vtkCellArray()
-        source_list = []
         for point in source:
             id = sourcePoints.InsertNextPoint(point[0], point[1], point[2])
             sourceVertices.InsertNextCell(1)
@@ -72,9 +73,9 @@ class Registration():
         #icp.DebugOn()
         # icp.SetMaximumNumberOfLandmarks(100)
         # icp.SetMaximumMeanDistance(0.0001)
-        icp.SetMaximumNumberOfIterations(100)
-        # icp.StartByMatchingCentroidsOn()
-        # icp.CheckMeanDistanceOn()
+        # icp.SetMaximumNumberOfIterations(100)
+        icp.StartByMatchingCentroidsOn()
+        icp.CheckMeanDistanceOn()
         icp.Modified()
         icp.Update()
         print("mean distance")
@@ -98,22 +99,35 @@ class Registration():
 
         self.transformation_matrix = icp.GetMatrix()
 
-    def findCorrespondenceByHungarian(self):
-        print("source")
-        print(self.source_numpy)
-        print("target")
-        print(self.target_numpy)
-        cost_matrix = distance_matrix(self.source_numpy, self.target_numpy)
-        print("cost matrix")
-        print(cost_matrix)
+    def findCorrespondenceByHungarian(self, source_numpy, target_numpy):
+        cost_matrix = distance_matrix(source_numpy, target_numpy)
         row_ind, col_ind = linear_sum_assignment(cost_matrix)
-        print("row_ind")
-        print(row_ind)
-        print("col_ind")
-        print(col_ind)
+        
+        return (row_ind, col_ind)
 
-    def performRegistrationByHungarian(self):
-        self.findCorrespondenceByHungarian()
+    def performRegistrationByHungarian(self, transformation=None):
+        # transform target points to align centroids with source target
+        if transformation is not None:
+            num_pts = len(self.target_numpy)
+            target_centroided_numpy = self.target_numpy.copy()
+            target_centroided_numpy = np.concatenate((target_centroided_numpy, np.array([1.0]*num_pts).reshape((num_pts, 1))), axis=1)
+            target_centroided_numpy = np.matmul(np.linalg.inv(transformation), target_centroided_numpy.T) # (4xN)
+            # make target_centroided_numpy from (4xN) to (Nx3)
+            target_centroided_numpy = target_centroided_numpy.T[:,:3]
+            source_ind, target_ind = self.findCorrespondenceByHungarian(self.source_numpy, target_centroided_numpy)
+            print("source")
+            print(source_ind)
+            print("target")
+            print(target_ind)
+            source = self.source_numpy[source_ind]
+            target = target_centroided_numpy[target_ind]
+        else:
+            source_ind, target_ind = self.findCorrespondenceByHungarian(self.source_numpy, target_centroided_numpy)
+            source = self.source_numpy[source_ind]
+            target = self.target_centroided_numpy[target_ind]
+
+        self.initializeSourceAndTarget(source, target)
+        self.performLandmarkTransform()
 
     def performLandmarkTransform(self):
 
@@ -234,7 +248,7 @@ class RegistrationDialog(QDialog):
                     self.tableWidget_world.setItem(rowPosition, 1, QTableWidgetItem(row[1]))
                     self.tableWidget_world.setItem(rowPosition, 2, QTableWidgetItem(row[2]))
 
-    def initializeRegistration(self):
+    def initializeRegistration(self, set_same_length=False):
         # get source points and target points from tablewidget_world and tablewidget_model 
         target_data = []
         for row in range(self.tableWidget_world.rowCount()):
@@ -248,10 +262,11 @@ class RegistrationDialog(QDialog):
             for col in range(self.tableWidget_model.columnCount()):
                     source_data[row].append(float(self.tableWidget_model.item(row, col).text()))
 
-        # take correspondence source and target data
-        num_valid_data = min(len(source_data), len(target_data))
-        source_data = source_data[:num_valid_data]
-        target_data = target_data[:num_valid_data]
+        if set_same_length:
+            # take correspondence source and target data
+            num_valid_data = min(len(source_data), len(target_data))
+            source_data = source_data[:num_valid_data]
+            target_data = target_data[:num_valid_data]
 
         registration = Registration(source_data, target_data)
 
@@ -259,13 +274,13 @@ class RegistrationDialog(QDialog):
 
     def registerLandmarks(self):
 
-        registration = self.initializeRegistration()
+        registration = self.initializeRegistration(set_same_length=True)
         registration.performLandmarkTransform()
         self.transformation_matrix = registration.getTransformationMatrix()
         # display registration result in qt
         self.label_registration_result.setText(str(self.transformation_matrix))
 
-        self.verifyRegistration(np.array(target_data))
+        # self.verifyRegistration(np.array(target_data))
 
         if self.checkBox_save_to_file.isChecked():
             self.saveData()
@@ -278,7 +293,7 @@ class RegistrationDialog(QDialog):
         # display registration result in qt
         self.label_registration_result.setText(str(self.transformation_matrix))
 
-        self.verifyRegistration(np.array(target_data))
+        # self.verifyRegistration(np.array(target_data))
 
         if self.checkBox_save_to_file.isChecked():
             self.saveData()
@@ -286,12 +301,15 @@ class RegistrationDialog(QDialog):
     def registerHungarian(self):
 
         registration = self.initializeRegistration()
-        registration.performRegistrationByHungarian()
-        # self.transformation_matrix = registration.getTransformationMatrix()
-        # # display registration result in qt
-        # self.label_registration_result.setText(str(self.transformation_matrix))
+        registration.performICP()
+        transformation_align_centroids = registration.getTransformationMatrix()
+        registration.performRegistrationByHungarian(transformation_align_centroids)
+        self.transformation_matrix = registration.getTransformationMatrix()
+        # display registration result in qt
+        self.label_registration_result.setText(str(self.transformation_matrix))
 
-        # self.verifyRegistration(np.array(target_data))
+        self.transformation_matrix = np.matmul(transformation_align_centroids, self.transformation_matrix)
+        self.verifyRegistration(registration.target_numpy)
 
         # if self.checkBox_save_to_file.isChecked():
         #     self.saveData()
