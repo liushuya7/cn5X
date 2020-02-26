@@ -178,6 +178,13 @@
         </widget>
        </item>
        <item>
+        <widget class="QPushButton" name="pushButton_register_hungarian">
+         <property name="text">
+          <string>Registration by Hungarian</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QPushButton" name="pushButton_register_icp">
          <property name="text">
           <string>ICP Registration</string>

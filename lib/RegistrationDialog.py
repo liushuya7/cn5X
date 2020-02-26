@@ -14,6 +14,8 @@ import numpy as np
 import csv
 from robot_kins import CNC_5dof
 from MeshProcessing import MeshProcessing
+from scipy.optimize import linear_sum_assignment
+from scipy.spatial import distance_matrix
 
 from compilOptions import grblCompilOptions
 
@@ -26,9 +28,13 @@ GREEN = (0,255,0)
 class Registration():
     def __init__(self, source, target):
         
+        self.source_numpy = np.array(source)
+        self.target_numpy = np.array(target)
+
         # create source vtkpolydata        
         sourcePoints = vtk.vtkPoints()
         sourceVertices = vtk.vtkCellArray()
+        source_list = []
         for point in source:
             id = sourcePoints.InsertNextPoint(point[0], point[1], point[2])
             sourceVertices.InsertNextCell(1)
@@ -67,8 +73,8 @@ class Registration():
         # icp.SetMaximumNumberOfLandmarks(100)
         # icp.SetMaximumMeanDistance(0.0001)
         icp.SetMaximumNumberOfIterations(100)
-        icp.StartByMatchingCentroidsOn()
-        icp.CheckMeanDistanceOn()
+        # icp.StartByMatchingCentroidsOn()
+        # icp.CheckMeanDistanceOn()
         icp.Modified()
         icp.Update()
         print("mean distance")
@@ -92,7 +98,22 @@ class Registration():
 
         self.transformation_matrix = icp.GetMatrix()
 
-    # def auxICP(self):
+    def findCorrespondenceByHungarian(self):
+        print("source")
+        print(self.source_numpy)
+        print("target")
+        print(self.target_numpy)
+        cost_matrix = distance_matrix(self.source_numpy, self.target_numpy)
+        print("cost matrix")
+        print(cost_matrix)
+        row_ind, col_ind = linear_sum_assignment(cost_matrix)
+        print("row_ind")
+        print(row_ind)
+        print("col_ind")
+        print(col_ind)
+
+    def performRegistrationByHungarian(self):
+        self.findCorrespondenceByHungarian()
 
     def performLandmarkTransform(self):
 
@@ -143,6 +164,7 @@ class RegistrationDialog(QDialog):
         self.__di.pushButton_load_world_features.pressed.connect(self.loadWorldFeatures)
         self.__di.pushButton_register_landmark.pressed.connect(self.registerLandmarks)
         self.__di.pushButton_register_icp.pressed.connect(self.registerICP)
+        self.__di.pushButton_register_hungarian.pressed.connect(self.registerHungarian)
 
         self.robot = CNC_5dof()
         self.x = 0
@@ -212,8 +234,7 @@ class RegistrationDialog(QDialog):
                     self.tableWidget_world.setItem(rowPosition, 1, QTableWidgetItem(row[1]))
                     self.tableWidget_world.setItem(rowPosition, 2, QTableWidgetItem(row[2]))
 
-
-    def registerLandmarks(self):
+    def initializeRegistration(self):
         # get source points and target points from tablewidget_world and tablewidget_model 
         target_data = []
         for row in range(self.tableWidget_world.rowCount()):
@@ -233,6 +254,12 @@ class RegistrationDialog(QDialog):
         target_data = target_data[:num_valid_data]
 
         registration = Registration(source_data, target_data)
+
+        return registration
+
+    def registerLandmarks(self):
+
+        registration = self.initializeRegistration()
         registration.performLandmarkTransform()
         self.transformation_matrix = registration.getTransformationMatrix()
         # display registration result in qt
@@ -244,20 +271,8 @@ class RegistrationDialog(QDialog):
             self.saveData()
 
     def registerICP(self):
-        # get source points and target points from tablewidget_world and tablewidget_model 
-        target_data = []
-        for row in range(self.tableWidget_world.rowCount()):
-            target_data.append([])
-            for col in range(self.tableWidget_world.columnCount()):
-                    target_data[row].append(float(self.tableWidget_world.item(row, col).text()))
 
-        source_data = []
-        for row in range(self.tableWidget_model.rowCount()):
-            source_data.append([])
-            for col in range(self.tableWidget_model.columnCount()):
-                    source_data[row].append(float(self.tableWidget_model.item(row, col).text()))
-
-        registration = Registration(source_data, target_data)
+        registration = self.initializeRegistration()
         registration.performICP()
         self.transformation_matrix = registration.getTransformationMatrix()
         # display registration result in qt
@@ -267,6 +282,19 @@ class RegistrationDialog(QDialog):
 
         if self.checkBox_save_to_file.isChecked():
             self.saveData()
+    
+    def registerHungarian(self):
+
+        registration = self.initializeRegistration()
+        registration.performRegistrationByHungarian()
+        # self.transformation_matrix = registration.getTransformationMatrix()
+        # # display registration result in qt
+        # self.label_registration_result.setText(str(self.transformation_matrix))
+
+        # self.verifyRegistration(np.array(target_data))
+
+        # if self.checkBox_save_to_file.isChecked():
+        #     self.saveData()
 
     def verifyRegistration(self, points):
         # transform world points to model space by registration result, visualize transformed points in viewer
@@ -283,7 +311,7 @@ class RegistrationDialog(QDialog):
 
     def saveData(self):
         file_name, _ = QFileDialog.getSaveFileName(self, 'Save File', directory=DEFAULT_PATH,filter=DATA_FILTER)
-        if os.path.splitext(file_name)[1] in DATA_FILTER:
+        if file_name != '' and os.path.splitext(file_name)[1] in DATA_FILTER:
             with open(file_name, 'wt') as stream:
                 writer = csv.writer(stream, lineterminator='\n')
                 # save table model

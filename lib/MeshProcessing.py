@@ -41,11 +41,34 @@ class MeshProcessing(object):
         t0 = time.time()
         c, normal = MeshProcessing.fitPlaneLTSQ(potential_vertices)
         centroid = self.mesh.centroid
+
+        # TODO: make following block clean later, add following block to get same result as test_implant_3d.py
+        source = vtk.vtkPlaneSource()
+        source.SetCenter(centroid)
+        source .SetNormal(normal)
+        # make plane larger
+        origin = source.GetOrigin()
+        vec_origin_to_center = centroid - np.array(list(origin))
+        point1 = source.GetPoint1()
+        vec1 = np.array(list(point1)) - origin 
+        point2 = source.GetPoint2()
+        vec2 = np.array(list(point2)) - origin 
+        origin = origin - vec_origin_to_center * 200
+        point1 = origin + 200 * vec1
+        point2 = origin + 200 * vec2
+        source.SetOrigin(origin)
+        source.SetPoint1(point1)
+        source.SetPoint2(point2)
+        # move plane away along normal direction
+        source.Push(100)
+
+        # vtk plane for projection
+        origin = source.GetOrigin()
         plane = vtk.vtkPlane()
-        plane.SetOrigin(centroid)
+        plane.SetOrigin(origin) # use centroid if without above block
         plane.SetNormal(normal)
-        plane.Push(100)# translate plane along normal direction by distance 100
-        origin = plane.GetOrigin()
+        # plane.Push(100)# translate plane along normal direction by distance 100
+        # origin = plane.GetOrigin()
         projected_points = []
         for i, point in enumerate(potential_vertices):
             projected_point = np.zeros(3)
@@ -60,6 +83,15 @@ class MeshProcessing(object):
         normals = np.repeat(-normal.reshape((1,3)), len(projected_points), axis=0)
         # check ray casting:
         t0 = time.time()
+
+        # non-vectorization implementation of ray casting
+        # desired_points = []
+        # for i, projected_point in enumerate(projected_points):
+        #     locations, index_ray, index_tri = self.mesh.ray.intersects_location(projected_point.reshape((1,3)), -normal.reshape((1,3)), multiple_hits=False)
+        #     if len(locations) > 0 and np.linalg.norm(potential_vertices[i] - locations[0]) > 0.1:
+        #         desired_points.append(potential_vertices[i].tolist())
+
+        # vectorization implementation of ray casting
         locations, index_ray, index_tri = self.mesh.ray.intersects_location(projected_points, normals, multiple_hits=False)
         potential_vertices_raycasting_order = potential_vertices[index_ray]
         difference = np.linalg.norm(potential_vertices_raycasting_order - locations, axis=1)
@@ -71,7 +103,7 @@ class MeshProcessing(object):
         print("K-Means ...")
         t0 = time.time()
         feature_point = []
-        km = KMeans(n_clusters=17) # debug, manually input number of clusters first, can try elbow
+        km = KMeans(n_clusters=17) # TODO:manually input number of clusters first, can try elbow
         y_km = km.fit(desired_points)
         for cluster_center in y_km.cluster_centers_:
             candidates = potential_vertices_raycasting_order - cluster_center
@@ -82,7 +114,6 @@ class MeshProcessing(object):
         print("time for extracting points by K Means: " + str(t1-t0))
 
         return feature_point
-            
 
     @staticmethod
     def extractPointsByCurvature(mesh, threshold, radius):
@@ -123,3 +154,101 @@ class MeshProcessing(object):
         nn = np.linalg.norm(normal)
         normal = normal / nn
         return (c, normal)
+
+def createPointActor(point_coordinate, color):
+    # Create the geometry of a point (the coordinate)
+    points = vtk.vtkPoints()
+    # Create the topology of the point (a vertex)
+    vertices = vtk.vtkCellArray()
+    id = points.InsertNextPoint(point_coordinate)
+    vertices.InsertNextCell(1)
+    vertices.InsertCellPoint(id)
+    # Create a polydata object
+    point = vtk.vtkPolyData()
+    # Set the points and vertices we created as the geometry and topology of the polydata
+    point.SetPoints(points)
+    point.SetVerts(vertices)
+
+    # Create a mapper
+    # Visualize
+    mapper = vtk.vtkPolyDataMapper()
+    if vtk.VTK_MAJOR_VERSION <= 5:
+        mapper.SetInput(point)
+    else:
+        mapper.SetInputData(point)
+    
+    actor = vtk.vtkActor()
+    actor.SetMapper(mapper)
+    actor.GetProperty().SetColor(color)
+    actor.GetProperty().SetPointSize(POINT_SIZE)
+
+    return actor
+
+def createPlaneActor(centroid, normal):
+
+    source = vtk.vtkPlaneSource()
+    source.SetCenter(centroid)
+    source .SetNormal(normal)
+    # make plane larger
+    origin = source.GetOrigin()
+    vec_origin_to_center = centroid - np.array(list(origin))
+    point1 = source.GetPoint1()
+    vec1 = np.array(list(point1)) - origin 
+    point2 = source.GetPoint2()
+    vec2 = np.array(list(point2)) - origin 
+    origin = origin - vec_origin_to_center * 200
+    point1 = origin + 200 * vec1
+    point2 = origin + 200 * vec2
+    source.SetOrigin(origin)
+    source.SetPoint1(point1)
+    source.SetPoint2(point2)
+    # move plane away along normal direction
+    source.Push(100)
+    # add plane
+    mapper = vtk.vtkPolyDataMapper()
+    mapper.SetInputConnection(source.GetOutputPort())
+    actor = vtk.vtkActor()
+    actor.SetMapper(mapper)
+
+    return actor
+
+def main():
+    RED = (255,0,0)
+    file_name = '../mesh/implant_registration_pts.stl'
+    mesh_processor = MeshProcessing(file_name)
+
+    ## VTK 
+    # load stl model
+    reader = vtk.vtkSTLReader()
+    reader.SetFileName(file_name)
+    # mapper 
+    mapper = vtk.vtkPolyDataMapper()
+    if vtk.VTK_MAJOR_VERSION <= 5:
+        mapper.SetInput(reader.GetOutput())
+    else:
+        mapper.SetInputConnection(reader.GetOutputPort())
+    actor = vtk.vtkActor()
+    actor.SetMapper(mapper)
+
+    # render setting
+    ren = vtk.vtkRenderer()
+    renWin = vtk.vtkRenderWindow()
+    renWin.AddRenderer(ren)
+    iren = vtk.vtkRenderWindowInteractor()
+    iren.SetInteractorStyle(vtk.vtkInteractorStyleTrackballCamera())
+    iren.SetRenderWindow(renWin)
+    ren.AddActor(actor)
+
+
+    feature_points = mesh_processor.extractFeaturePoints()
+    # render feature points in viewer
+    for point in feature_points:
+        actor = createPointActor(point, color=RED)
+        ren.AddActor(actor)
+
+    # show render window
+    iren.Initialize()
+    iren.Start()
+
+if __name__ == "__main__":
+    main()
