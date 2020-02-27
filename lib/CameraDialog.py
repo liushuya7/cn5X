@@ -6,10 +6,14 @@ from PyQt5 import uic
 
 import cv2
 import numpy as np
+import csv
+from scipy.spatial.transform import Rotation
 
 # debug
 import pickle
 import sys
+import roslibpy
+import roslibpy.tf
 
 from CameraThread import CameraThread
 from ImageWindowThread import ImageWindowThread
@@ -17,11 +21,14 @@ from TwoViewEstimate import TwoViewEstimate
 from ImageProcessing import ImageProcessing
 
 self_dir = os.path.dirname(os.path.realpath(__file__))
-SAVE_PATH = os.path.join(self_dir, '../img')
+IMAGE_PATH = os.path.join(self_dir, '../img')
+IMAGE_FILTER = "png (*.png);;jpg (*.jpg);;PNG (*.PNG);;JPG (*.JPG)"
+DATA_PATH = os.path.join(self_dir, '../data')
+DATA_FILTER = "CSV files (*.csv);;Text files (*.txt)"
 
 class CameraDialog(QDialog):
 	''' Camera dialog '''
-	def __init__(self):
+	def __init__(self, ros):
 		super().__init__()
 		ui_dlgCamera = os.path.join(self_dir, '../ui/camera.ui')
 		self.__dl = uic.loadUi(ui_dlgCamera, self)
@@ -42,23 +49,58 @@ class CameraDialog(QDialog):
 		self.__dl.pushButton_reconstruct.clicked.connect(self.reconstructPoints)
 		self.__dl.pushButton_automatic.clicked.connect(self.automaticReconstruction)
 
+		self.ros = ros
+		self.ros.on_ready(lambda: print('Camera (ROS Connection):', self.ros.is_connected))
+		self.tf_listener = roslibpy.tf.TFClient(self.ros, 'W', rate=100, angular_threshold=0.001, translation_threshold=0.0001)
+		self.tf_listener.subscribe('camera_color_optical_frame', self.updateCameraPose)
+		self.file_name_tf = None
+		
+	def updateCameraPose(self, data):
+		# update camera realtime pose
+		self.camera_pose = data
+
+	def processTfData(self, data):
+		quat = [data['rotation']['x'], data['rotation']['y'], data['rotation']['z'], data['rotation']['w']]
+		tvec = [data['translation']['x'], data['translation']['y'], data['translation']['z']]
+		camera_pose = []
+		camera_pose.extend(tvec)
+		camera_pose.extend(quat)
+		print(camera_pose)
+
+		return camera_pose
+
 	def startVideo(self):
 		self.camera_thread = CameraThread()
 		self.camera_thread.start()
 
 	def captureImage(self):
 
-		# make save dir if not existed
-		if not os.path.isdir(SAVE_PATH):
-			os.makedirs(SAVE_PATH,exist_ok=True)
+		# make dirs if not existed
+		if not os.path.isdir(IMAGE_PATH):
+			os.makedirs(IMAGE_PATH,exist_ok=True)
+		if not os.path.isdir(DATA_PATH):
+			os.makedirs(DATA_PATH,exist_ok=True)
+
 		if self.__dl.checkBox_save.isChecked():
-			file_name = os.path.join(SAVE_PATH, str(self.saved_file).zfill(2)+'.png')
-			print(file_name)
-			self.camera_thread.saveImage(file_name)
+			if not self.file_name_tf: 
+				self.file_name_tf = os.path.join(DATA_PATH, str("tf")+'.csv')
+			# save camera pose
+			# TODO: figure out a way to delete former tf file, since we are using "at" to append data
+			camera_pose = self.camera_pose
+			camera_pose = self.processTfData(camera_pose)
+			with open(self.file_name_tf, 'at') as stream:
+				writer = csv.writer(stream, lineterminator='\n')
+				writer.writerow(camera_pose)
+
+			file_name_img = os.path.join(IMAGE_PATH, str(self.saved_file).zfill(2)+'.png')
+			self.camera_thread.saveImage(file_name_img)
+
 			self.saved_file += 1
+
+		# TODO: fix bug for saving tf data here
 		else:
 			file_filter = "png (*.png);;jpg (*.jpg);;PNG (*.PNG);;JPG (*.JPG)"
-			file_name,_ = QFileDialog.getSaveFileName(self, 'Save File', directory=SAVE_PATH,filter=file_filter)
+			file_name,_ = QFileDialog.getSaveFileName(self, 'Save File', directory=IMAGE_PATH,filter=file_filter)
 			if file_name != '':
 				self.camera_thread.saveImage(file_name)
 
@@ -70,48 +112,42 @@ class CameraDialog(QDialog):
 		self.closeCamera()
 
 	def matchFeatures(self):
-
-		def load_calib(file_name):
-			# for reading also binary mode is important 
-			dbfile = open(file_name, 'rb')      
-			db = pickle.load(dbfile) 
-			dbfile.close() 
-			return db
-
-		def get_pose_calib(calibration_result, camera_id):
-
-			R, _ = cv2.Rodrigues(calibration_result.rvecs[camera_id]);
-			t = calibration_result.tvecs[camera_id];
-			H_cam_to_board = np.concatenate((R, t.reshape((3,1))),axis=1);
-			H_cam_to_board = np.concatenate((H_cam_to_board, np.array([0,0,0,1]).reshape((1,4))),axis=0);
-			H_board_to_cam = np.linalg.inv(H_cam_to_board);
-
-			return H_board_to_cam;
-
-		# debug: use camera poses for previous case
-		file_name = os.path.join(self_dir, '../my_calib')
-		my_calib = load_calib(file_name)
-		calibration_result = my_calib.cal_result; # R and t is from camera to chessboard, R is vector form, t is in mm
-
 		# get image file names
-		file_filter = "png (*.png);;jpg (*.jpg);;PNG (*.PNG);;JPG (*.JPG)"
 		file_name = QFileDialog()
 		file_name.setFileMode(QFileDialog.ExistingFiles)
-		names, _ = file_name.getOpenFileNames(self, "Open files", SAVE_PATH, file_filter)
+		image_names, _ = file_name.getOpenFileNames(self, "Open files", IMAGE_PATH, IMAGE_FILTER)
+		tf_name, _ = QFileDialog.getOpenFileName(self, "Open files", DATA_PATH, DATA_FILTER)
 
-		# store images and open ImageWindow
-		for name in names:
-			img_name = os.path.split(name)[1] # extract the tail part for window name
+		# process tf data
+		camera_poses = []
+		if tf_name != '' and os.path.splitext(tf_name)[1] in DATA_FILTER:
+			with open(tf_name, 'r') as stream:
+				reader = csv.reader(stream, delimiter=',')
+				for row in reader:
+					row = [float(value) for value in row]
+					camera_poses.append(row)
+
+		# store images TODO: a way to associate image, poses, image_id for two-view and multi-view neatly
+		for i,name in enumerate(image_names):
+			img_name = os.path.split(name)[1] # extract the tail part for window name, formatted as "name_ID.png"
+			# extract id of image 
 			img_id = int(img_name.split('.')[0].split('_')[-1])
 			img = cv2.imread(name)
 			self.imgs_key_to_id.append(img_id)
 			self.imgs[img_id] = img
-			self.poses[img_id] = get_pose_calib(calibration_result, img_id)
+			self.poses[img_id] = CameraDialog.convertToSE3(np.array(camera_poses[img_id][:3]), np.array(camera_poses[img_id][3:]))
 			thread = ImageWindowThread(img_name, img)
 			self.window_threads.append(thread)
 
+		# TODO: hard code camera intrinsic parameters here, need to feed in the parameters in a neat way
+
+		mtx=np.array([[1.37347548e+03, 0, 9.61674092e+02],
+		                                    [0, 1.37389297e+03, 5.21102993e+02],
+		                                    [0, 0, 1]]);
+		dist=np.array([[ 1.02888212e-01, -1.53687651e-01,  4.25168437e-05, -2.58183034e-03, -2.02461554e-01]]);
+
 		self.two_view_estimate = TwoViewEstimate(self.imgs[self.imgs_key_to_id[0]], self.imgs[self.imgs_key_to_id[1]],\
-			 									calibration_result.mtx, calibration_result.dist,\
+			 									mtx, dist,\
 												self.poses[self.imgs_key_to_id[0]], self.poses[self.imgs_key_to_id[1]])
 
 		self.window_threads[0].window.img = self.two_view_estimate.img1_rectified
@@ -153,54 +189,69 @@ class CameraDialog(QDialog):
 			print("Thread manager stopped!")
 
 	def reconstructPoints(self, pts1=None, pts2=None):
+
 		if pts1 is None or pts2 is None:
-			self.two_view_estimate.estimate(self.window_threads[0].window.points_list, self.window_threads[1].window.points_list);
+			self.two_view_estimate.estimate(self.window_threads[0].window.points_list, self.window_threads[1].window.points_list, scale=1000);
 		else:
-			self.two_view_estimate.estimate(pts1, pts2)
+			self.two_view_estimate.estimate(pts1, pts2, scale=1000)
 		print("Reconstructed points are saved in /data")
 
+	@staticmethod
+	def convertToSE3(tvec, quat):
+		"""
+		Converts quaternion and translation vector into SE3 lie group
+
+		Args:
+			quat: quaternion representation of rotation (scalar last)
+			tvec: translation vector (meters)
+
+		Returns:
+			tf: SE3 transformation (rotation + translation)
+		"""
+		r = Rotation.from_quat(quat)
+		r_mat = r.as_matrix()
+		tvec = tvec.reshape((3,1))
+		tf = np.concatenate((r_mat, tvec), axis=1)
+		last_row = [[0, 0, 0, 1]]
+		tf = np.concatenate((tf, last_row), axis=0)
+		return tf
+
 	def automaticReconstruction(self):
-		
-		### Temporary test code
-		def load_calib(file_name):
-			# for reading also binary mode is important 
-			dbfile = open(file_name, 'rb')      
-			db = pickle.load(dbfile) 
-			dbfile.close() 
-			return db
-
-		def get_pose_calib(calibration_result, camera_id):
-
-			R, _ = cv2.Rodrigues(calibration_result.rvecs[camera_id]);
-			t = calibration_result.tvecs[camera_id];
-			H_cam_to_board = np.concatenate((R, t.reshape((3,1))),axis=1);
-			H_cam_to_board = np.concatenate((H_cam_to_board, np.array([0,0,0,1]).reshape((1,4))),axis=0);
-			H_board_to_cam = np.linalg.inv(H_cam_to_board);
-
-			return H_board_to_cam;
-
-		# debug: Temporary test code to extract camera poses 
-		file_name = os.path.join(self_dir, '../my_calib')
-		my_calib = load_calib(file_name)
-		calibration_result = my_calib.cal_result # R and t is from camera to chessboard, R is vector form, t is in mm
 
 		# get image file names
-		file_filter = "png (*.png);;jpg (*.jpg);;PNG (*.PNG);;JPG (*.JPG)"
 		file_name = QFileDialog()
 		file_name.setFileMode(QFileDialog.ExistingFiles)
-		names, _ = file_name.getOpenFileNames(self, "Open files", SAVE_PATH, file_filter)
+		image_names, _ = file_name.getOpenFileNames(self, "Open files", IMAGE_PATH, IMAGE_FILTER)
+		tf_name, _ = QFileDialog.getOpenFileName(self, "Open files", DATA_PATH, DATA_FILTER)
+
+		# process tf data
+		camera_poses = []
+		if tf_name != '' and os.path.splitext(tf_name)[1] in DATA_FILTER:
+			with open(tf_name, 'r') as stream:
+				reader = csv.reader(stream, delimiter=',')
+				for row in reader:
+					row = [float(value) for value in row]
+					camera_poses.append(row)
+
 		# store images TODO: a way to associate image, poses, image_id for two-view and multi-view neatly
-		for i,name in enumerate(names):
+		for i,name in enumerate(image_names):
 			img_name = os.path.split(name)[1] # extract the tail part for window name, formatted as "name_ID.png"
 			# extract id of image 
 			img_id = int(img_name.split('.')[0].split('_')[-1])
 			img = cv2.imread(name)
 			self.imgs_key_to_id.append(img_id)
 			self.imgs[img_id] = img
-			self.poses[img_id] = get_pose_calib(calibration_result, img_id)
+			self.poses[img_id] = CameraDialog.convertToSE3(np.array(camera_poses[img_id][:3]), np.array(camera_poses[img_id][3:]))
+
+		# TODO: hard code camera intrinsic parameters here, need to feed in the parameters in a neat way
+
+		mtx=np.array([[1.37347548e+03, 0, 9.61674092e+02],
+		                                    [0, 1.37389297e+03, 5.21102993e+02],
+		                                    [0, 0, 1]]);
+		dist=np.array([[ 1.02888212e-01, -1.53687651e-01,  4.25168437e-05, -2.58183034e-03, -2.02461554e-01]]);
 
 		self.two_view_estimate = TwoViewEstimate(self.imgs[self.imgs_key_to_id[0]], self.imgs[self.imgs_key_to_id[1]],\
-			 									calibration_result.mtx, calibration_result.dist,\
+			 									mtx, dist,\
 												self.poses[self.imgs_key_to_id[0]], self.poses[self.imgs_key_to_id[1]])
 		image_processor_1 = ImageProcessing(self.two_view_estimate.img1_rectified)
 		feature_points_1, img_with_keypoint_1 = image_processor_1.extractFeaturePoints()
@@ -208,11 +259,26 @@ class CameraDialog(QDialog):
 		feature_points_2, img_with_keypoint_2 = image_processor_2.extractFeaturePoints()
 		feature_points_1 = np.array(feature_points_1)
 		feature_points_2 = np.array(feature_points_2)
+
+		# # feature_points should be sorted by pixel-x-coordinate in decreasing order by default
+		# # extract intersection points, set threshold to be 2 pixel for now
+		# points_for_triangulation_1 = []
+		# points_for_triangulation_2 = []
+		# threshold = 5
+		# for point in feature_points_1:
+		# 	difference = abs(feature_points_2 - point)[:,0]
+		# 	ret = np.where(difference < threshold)
+		# 	potential_correspondence_id = ret[0]
+		# 	if len(potential_correspondence_id) == 1:
+		# 		# TODO: need to handle case for multiple potential_correspondences	
+		# 		points_for_triangulation_1.append(point.tolist())
+		# 		points_for_triangulation_2.append(feature_points_2[potential_correspondence_id].flatten().tolist())
+
 		# feature_points should be sorted by pixel-y-coordinate in decreasing order by default
 		# extract intersection points, set threshold to be 2 pixel for now
 		points_for_triangulation_1 = []
 		points_for_triangulation_2 = []
-		threshold = 2
+		threshold = 5
 		for point in feature_points_1:
 			difference = abs(feature_points_2 - point)[:,1]
 			ret = np.where(difference < threshold)
@@ -221,6 +287,7 @@ class CameraDialog(QDialog):
 				# TODO: need to handle case for multiple potential_correspondences	
 				points_for_triangulation_1.append(point.tolist())
 				points_for_triangulation_2.append(feature_points_2[potential_correspondence_id].flatten().tolist())
+
 		points_for_triangulation_1 = np.array(points_for_triangulation_1)
 		points_for_triangulation_2 = np.array(points_for_triangulation_2)
 		# debug

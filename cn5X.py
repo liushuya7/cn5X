@@ -573,7 +573,7 @@ class GrblMainwindow(QtWidgets.QMainWindow):
 
   def on_mnu_Camera(self):
     ''' Camera dialog'''
-    self.camera_dialog = CameraDialog()
+    self.camera_dialog = CameraDialog(self.ros)
 
   @pyqtSlot(str)
   def on_sig_config_changed(self, data: str):

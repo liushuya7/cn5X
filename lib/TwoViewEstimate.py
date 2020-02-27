@@ -18,6 +18,8 @@ class TwoViewEstimate(object):
         shape = self.img1.shape;
         self.img_size = (shape[1],shape[0]);
         self.P1, self.R1, self.P2, self.R2, self.img1_rectified, self.img2_rectified = self.stereoRectify();
+        cv2.imwrite("rectified1.png", self.img1_rectified)
+        cv2.imwrite("rectified2.png", self.img2_rectified)
         self.img1_matching = self.img1_rectified.copy();
         self.img2_matching = self.img2_rectified.copy();
 
@@ -168,13 +170,14 @@ class TwoViewEstimate(object):
 
         return points2D
 
-    def estimate(self, pts_1, pts_2):
+    def estimate(self, pts_1, pts_2, scale=1.0):
         # F = self.findFundamentalMatrix();
         # (L, point1, point2) = self.computeEpipolarLine(F, pts_1);
         # return (L, point1, point2)
 
         pts_3d = self.triangulation(self.P1, self.P2, np.array(pts_1), np.array(pts_2));
         pts_3d = self.transformToCamera1(pts_3d)
+        pts_3d *= scale
         points_file = os.path.join(SAVE_PATH, "points_3d_stereo.csv")
         # check save path
         if not os.path.isdir(SAVE_PATH):

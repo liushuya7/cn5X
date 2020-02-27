@@ -17,11 +17,12 @@ from MeshProcessing import MeshProcessing
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial import distance_matrix
 from scipy.spatial.transform import Rotation as R
+import itertools
 
 from compilOptions import grblCompilOptions
 
 self_dir = os.path.dirname(os.path.realpath(__file__))
-DEFAULT_PATH = os.path.join(self_dir, "../data")
+DATA_PATH = os.path.join(self_dir, "../data")
 DATA_FILTER = "CSV files (*.csv);;Text files (*.txt)"
 RED = (255,0,0)
 GREEN = (0,255,0)
@@ -167,6 +168,9 @@ class Registration():
         if vtk.VTK_MAJOR_VERSION <= 5:
             lm_transform.Update()
         self.transformation_matrix = lm_transform.GetMatrix()
+
+    # def performBruteForce(self):
+
         
     def getTransformationMatrix(self):
         # get numpy array from vtk matrix
@@ -175,6 +179,7 @@ class Registration():
             for j in range(4):
                 transformation_mat[i,j] = self.transformation_matrix.GetElement(i,j)
         return transformation_mat 
+
 
 class RegistrationDialog(QDialog):
     ''' Registration dialog '''
@@ -207,6 +212,7 @@ class RegistrationDialog(QDialog):
         self.__di.pushButton_register_landmark.pressed.connect(self.registerLandmarks)
         self.__di.pushButton_register_icp.pressed.connect(self.registerICP)
         self.__di.pushButton_register_hungarian.pressed.connect(self.registerHungarian)
+        self.__di.pushButton_load_data.pressed.connect(self.loadData)
 
         self.robot = CNC_5dof()
         self.x = 0
@@ -263,11 +269,10 @@ class RegistrationDialog(QDialog):
                 self.viewer.addPointToTable(point)
 
     def loadWorldFeatures(self):
-        file_name, _ = QFileDialog.getOpenFileName(self, 'Open File', directory=DEFAULT_PATH,filter=DATA_FILTER)
+        file_name, _ = QFileDialog.getOpenFileName(self, 'Open File', directory=DATA_PATH,filter=DATA_FILTER)
         if file_name != '' and os.path.splitext(file_name)[1] in DATA_FILTER:
             with open(file_name, 'r') as stream:
                 reader = csv.reader(stream, delimiter=',')
-                data_type = None
                 for row in reader:
                     rowPosition = self.tableWidget_world.rowCount()
                     self.tableWidget_world.insertRow(rowPosition)
@@ -311,8 +316,10 @@ class RegistrationDialog(QDialog):
             self.saveData()
 
         # compute error
-        error = self.computeError(registration.source_numpy[registration.best_source_ind],\
-                                  registration.target_numpy[registration.best_target_ind])
+        error = self.computeError(registration.source_numpy,\
+                                  transformed_targets)
+        print("error")
+        print(error)
 
         # display registration result in qt
         self.label_registration_result.setText(str(self.transformation_matrix))
@@ -329,8 +336,8 @@ class RegistrationDialog(QDialog):
             self.saveData()
 
         # compute error
-        error = self.computeError(registration.source_numpy[registration.best_source_ind],\
-                                  registration.target_numpy[registration.best_target_ind])
+        # error = self.computeError(registration.source_numpy[registration.best_source_ind],\
+        #                           registration.target_numpy[registration.best_target_ind])
 
         # display registration result in qt
         self.label_registration_result.setText(str(self.transformation_matrix))
@@ -385,8 +392,45 @@ class RegistrationDialog(QDialog):
 
         return avg_dist
 
+    def loadData(self):
+        file_name, _ = QFileDialog.getOpenFileName(self, 'Open File', directory=DATA_PATH,filter=DATA_FILTER)
+        if file_name != '' and os.path.splitext(file_name)[1] in DATA_FILTER:
+            file_name = str(file_name)
+            with open(file_name, 'r') as stream:
+                reader = csv.reader(stream, delimiter=',')
+                data_type = None
+                for row in reader:
+                    # check 
+                    if len(row) == 1:
+                        data_type = row[0]
+                        # initialize self.transformation matrix to empty list if there is registration result
+                        if data_type == "H":
+                            self.transformation_matrix = []
+                    else:
+                        if data_type == "W":
+                            rowPosition = self.tableWidget_world.rowCount()
+                            self.tableWidget_world.insertRow(rowPosition)
+                            self.tableWidget_world.setItem(rowPosition, 0, QTableWidgetItem(row[0]))
+                            self.tableWidget_world.setItem(rowPosition, 1, QTableWidgetItem(row[1]))
+                            self.tableWidget_world.setItem(rowPosition, 2, QTableWidgetItem(row[2]))
+                        elif data_type == "M":
+                            rowPosition = self.tableWidget_model.rowCount()
+                            self.tableWidget_model.insertRow(rowPosition)
+                            self.tableWidget_model.setItem(rowPosition, 0, QTableWidgetItem(row[0]))
+                            self.tableWidget_model.setItem(rowPosition, 1, QTableWidgetItem(row[1]))
+                            self.tableWidget_model.setItem(rowPosition, 2, QTableWidgetItem(row[2]))
+                        elif data_type == "H":
+                            transformation_matrix_row = [float(row[0]), float(row[1]), float(row[2]), float(row[3])]
+                            self.transformation_matrix.append(transformation_matrix_row)
+                # turn transformation matrix to np array if necessary
+                if self.transformation_matrix is not None:
+                    self.transformation_matrix = np.array(self.transformation_matrix)
+                    self.label_registration_result.setText(str(self.transformation_matrix))
+
+
+
     def saveData(self):
-        file_name, _ = QFileDialog.getSaveFileName(self, 'Save File', directory=DEFAULT_PATH,filter=DATA_FILTER)
+        file_name, _ = QFileDialog.getSaveFileName(self, 'Save File', directory=DATA_PATH,filter=DATA_FILTER)
         if file_name != '' and os.path.splitext(file_name)[1] in DATA_FILTER:
             with open(file_name, 'wt') as stream:
                 writer = csv.writer(stream, lineterminator='\n')

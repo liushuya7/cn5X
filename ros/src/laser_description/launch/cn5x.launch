@@ -1,11 +1,15 @@
 <launch>
+    <arg name="handeye_calibration" default="false" doc="true only for handeye calibration"/>
+
     <!-- roslibpy bridge -->
     <include file="$(find laser_description)/launch/rviz_rosbridge.launch"/>
 
-    <!-- Realsense Camera -->
-    <include file="$(find realsense2_camera)/launch/rs_camera.launch"/>
-    <!-- tuw checkerboard pkg -->
-    <include file="$(find tuw_aruco)/launch/demo_single_marker_live.launch"/>
+        <group if="$(arg handeye_calibration)">
+            <!-- Realsense Camera -->
+        <include file="$(find realsense2_camera)/launch/rs_camera.launch"/>
+        <!-- tuw aruco pkg for handeye calibration-->
+        <include file="$(find tuw_aruco)/launch/demo_single_marker_live.launch"/>
+    </group>
 
     <!-- TF static broadcaster Handeye result -->
     <node pkg="tf" type="static_transform_publisher" name="static_tf_ybox1_camera" args="-0.16308334  0.39907095  0.29354603  0.01519794  0.98482557 -0.17261198 -0.00962964 y_box1 camera_color_optical_frame 100" />
