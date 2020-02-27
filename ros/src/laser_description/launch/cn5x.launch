@@ -8,5 +8,5 @@
     <include file="$(find tuw_aruco)/launch/demo_single_marker_live.launch"/>
 
     <!-- TF static broadcaster Handeye result -->
-    <node pkg="tf" type="static_transform_publisher" name="static_tf_ybox1_camera" args="-0.20424956  0.4104368   0.28634658  -0.00152344  0.98453149 -0.17437982  0.01694436 y_box1 camera_color_optical_frame 100" />
+    <node pkg="tf" type="static_transform_publisher" name="static_tf_ybox1_camera" args="-0.16308334  0.39907095  0.29354603  0.01519794  0.98482557 -0.17261198 -0.00962964 y_box1 camera_color_optical_frame 100" />
 </launch>

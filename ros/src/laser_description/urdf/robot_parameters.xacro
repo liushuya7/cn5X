@@ -1,27 +1,29 @@
 <?xml version="1.0" ?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
-  <!-- Modele Parameters -->
+  <!-- Modele Parameters (m)-->
   <xacro:property name="metal_plate_length" value="0.43"/>
   <xacro:property name="metal_plate_width" value="0.20"/>
   <xacro:property name="metal_plate_to_rotary_center_height" value="0.080"/>
-  <xacro:property name="rotary_center_to_rotary_top" value="0.11045"/>
-  <xacro:property name="rotary_center_to_linear_stage_x" value="0.1845"/>
-  <xacro:property name="rotary_center_to_linear_stage_y" value="-0.2653"/>
-  <xacro:property name="rotary_center_to_linear_stage_z" value="0.2426"/>
+  <xacro:property name="rotary_center_to_rotary_top" value="0.1263"/>
+  <xacro:property name="rotary_center_to_linear_stage_x" value="0.102"/>
+  <xacro:property name="rotary_center_to_linear_stage_y" value="-0.207"/>
+  <xacro:property name="rotary_center_to_linear_stage_z" value="0.2186"/>
 
   <xacro:property name="laser_rad" value="0.015"/>
   <xacro:property name="laser_height" value="0.069"/>
-  <xacro:property name="laser_pos_from_plate" value="0.3"/>
   <xacro:property name="rail_width" value="0.04"/>
   <xacro:property name="y_rail_length" value="0.42"/>
   <xacro:property name="x_rail_length" value="0.347"/>
 
   <!-- Joint Parameters -->
-  <xacro:property name="d1_limit" value="-0.280"/>
-  <xacro:property name="d2_limit" value="-0.280"/>
-  <xacro:property name="d3_limit" value="-0.065"/>
-  <!-- theta4 joint limit = 150 deg -->
-  <xacro:property name="theta4_limit" value="-2.617"/>
-  <!-- theta5 joint no limit -->
-  <xacro:property name="theta5_limit" value="-62.8"/>
+  <xacro:property name="X_limit" value="-0.290"/>
+  <xacro:property name="Y_limit" value="-0.280"/>
+  <xacro:property name="Z_limit" value="-0.065"/>
+  <xacro:property name="A_limit" value="-2.617"/>
+  <xacro:property name="B_limit" value="-62.8"/>
+  <xacro:property name="Y_joint_offset" value="0.08"/>
+  <xacro:property name="X_joint_offset" value="0.03"/>
+  
+
+
 </robot>
