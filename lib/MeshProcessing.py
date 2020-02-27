@@ -212,6 +212,60 @@ def createPlaneActor(centroid, normal):
 
     return actor
 
+
+def createLineActor(p0, p1):
+    # Create a vtkPoints object and store the points in it
+    pts = vtk.vtkPoints()
+    pts.InsertNextPoint(p0)
+    pts.InsertNextPoint(p1)
+
+    # Setup two colors - one for each line
+    green = [0, 255, 0]
+
+    # Setup the colors array
+    colors = vtk.vtkUnsignedCharArray()
+    colors.SetNumberOfComponents(3)
+    colors.SetName("Colors")
+
+    # Add the colors we created to the colors array
+    colors.InsertNextTypedTuple(green)
+
+    # Create the first line (between Origin and P0)
+    line = vtk.vtkLine()
+    line.GetPointIds().SetId(0,0) # the second 0 is the index of the Origin in the vtkPoints
+    line.GetPointIds().SetId(1,1) # the second 1 is the index of P0 in the vtkPoints
+
+    # Create a cell array to store the lines in and add the lines to it
+    lines = vtk.vtkCellArray()
+    lines.InsertNextCell(line)
+
+    # Create a polydata to store everything in
+    linesPolyData = vtk.vtkPolyData()
+
+    # Add the points to the dataset
+    linesPolyData.SetPoints(pts)
+
+    # Add the lines to the dataset
+    linesPolyData.SetLines(lines)
+
+    # Color the lines - associate the first component (red) of the
+    # colors array with the first component of the cell array (line 0)
+    # and the second component (green) of the colors array with the
+    # second component of the cell array (line 1)
+    linesPolyData.GetCellData().SetScalars(colors)
+
+    # Visualize
+    mapper = vtk.vtkPolyDataMapper()
+    if vtk.VTK_MAJOR_VERSION <= 5:
+        mapper.SetInput(linesPolyData)
+    else:
+        mapper.SetInputData(linesPolyData)
+
+    actor = vtk.vtkActor()
+    actor.SetMapper(mapper)
+
+    return actor
+
 def main():
     RED = (255,0,0)
     file_name = '../mesh/implant_registration_pts.stl'
