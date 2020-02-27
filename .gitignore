@@ -111,5 +111,13 @@ build/
 devel/
 logs/
 
+# Images
+*.png
+*.jpg
+*.PNG
+*.JPG
+
+
+# Self-defined
 .vscode/
 data/

@@ -14,6 +14,9 @@ import numpy as np
 import csv
 from robot_kins import CNC_5dof
 from MeshProcessing import MeshProcessing
+from scipy.optimize import linear_sum_assignment
+from scipy.spatial import distance_matrix
+from scipy.spatial.transform import Rotation as R
 
 from compilOptions import grblCompilOptions
 
@@ -26,6 +29,11 @@ GREEN = (0,255,0)
 class Registration():
     def __init__(self, source, target):
         
+        self.source_numpy = np.array(source)
+        self.target_numpy = np.array(target)
+        self.initializeSourceAndTarget(source, target)
+
+    def initializeSourceAndTarget(self, source, target):
         # create source vtkpolydata        
         sourcePoints = vtk.vtkPoints()
         sourceVertices = vtk.vtkCellArray()
@@ -66,13 +74,11 @@ class Registration():
         #icp.DebugOn()
         # icp.SetMaximumNumberOfLandmarks(100)
         # icp.SetMaximumMeanDistance(0.0001)
-        icp.SetMaximumNumberOfIterations(100)
+        # icp.SetMaximumNumberOfIterations(100)
         icp.StartByMatchingCentroidsOn()
         icp.CheckMeanDistanceOn()
         icp.Modified()
         icp.Update()
-        print("mean distance")
-        print(icp.GetMeanDistance())
 
         # icpTransformFilter = vtk.vtkTransformPolyDataFilter()
         # if vtk.VTK_MAJOR_VERSION <= 5:
@@ -92,7 +98,64 @@ class Registration():
 
         self.transformation_matrix = icp.GetMatrix()
 
-    # def auxICP(self):
+    def findCorrespondenceByHungarian(self, source_numpy, target_numpy):
+        cost_matrix = distance_matrix(source_numpy, target_numpy)
+        row_ind, col_ind = linear_sum_assignment(cost_matrix)
+        cost = cost_matrix[row_ind, col_ind].sum()
+        
+        return (cost, row_ind, col_ind)
+
+    def performRegistrationByHungarian(self, transformation=None):
+        # transform target points to align centroids with source target
+        if transformation is not None:
+            num_pts = len(self.target_numpy)
+            target_centroided_numpy = self.target_numpy.copy()
+            target_centroided_numpy = np.concatenate((target_centroided_numpy, np.array([1.0]*num_pts).reshape((num_pts, 1))), axis=1)
+            target_centroided_numpy = np.matmul(np.linalg.inv(transformation), target_centroided_numpy.T) # (4xN)
+            # make target_centroided_numpy from (4xN) to (Nx3)
+            target_centroided_numpy = target_centroided_numpy.T[:,:3]
+            # fit plane to feature points on implant and extract the normal
+            c, normal = MeshProcessing.fitPlaneLTSQ(self.source_numpy)
+            centroid = np.mean(target_centroided_numpy, axis=0)
+
+            # rotate target_centroided points along the normal, find the one with smallest error
+            cost_list = []
+            source_ind_list = []
+            target_ind_list = []
+            for angle in np.linspace(0, 2*np.pi, num = 100):
+                r = R.from_rotvec(angle*normal)
+                rotation_matrix = r.as_matrix()
+                translated_points = target_centroided_numpy - centroid.reshape((1,3))
+                rotated_points = np.matmul(rotation_matrix, translated_points.T).T
+                rotated_points = rotated_points + centroid.reshape((1,3))
+                cost, source_ind, target_ind = self.findCorrespondenceByHungarian(self.source_numpy, rotated_points)
+                cost_list.append(cost)
+                source_ind_list.append(source_ind)
+                target_ind_list.append(target_ind)
+            cost_list = np.array(cost_list)
+            source_ind_list = np.array(source_ind_list)
+            target_ind_list = np.array(target_ind_list)
+
+            best_match = np.argmin(cost_list)
+            best_source_ind = source_ind_list[best_match]
+            best_target_ind = target_ind_list[best_match]
+            print("best source ind")
+            print(best_source_ind)
+            print("best target ind")
+            print(best_target_ind)
+            self.best_source_ind = best_source_ind
+            self.best_target_ind = best_target_ind
+
+            source = self.source_numpy[best_source_ind]
+            target = target_centroided_numpy[best_target_ind]
+
+        else:
+            source_ind, target_ind = self.findCorrespondenceByHungarian(self.source_numpy, target_centroided_numpy)
+            source = self.source_numpy[source_ind]
+            target = self.target_centroided_numpy[target_ind]
+
+        self.initializeSourceAndTarget(source, target)
+        self.performLandmarkTransform()
 
     def performLandmarkTransform(self):
 
@@ -143,6 +206,7 @@ class RegistrationDialog(QDialog):
         self.__di.pushButton_load_world_features.pressed.connect(self.loadWorldFeatures)
         self.__di.pushButton_register_landmark.pressed.connect(self.registerLandmarks)
         self.__di.pushButton_register_icp.pressed.connect(self.registerICP)
+        self.__di.pushButton_register_hungarian.pressed.connect(self.registerHungarian)
 
         self.robot = CNC_5dof()
         self.x = 0
@@ -200,8 +264,7 @@ class RegistrationDialog(QDialog):
 
     def loadWorldFeatures(self):
         file_name, _ = QFileDialog.getOpenFileName(self, 'Open File', directory=DEFAULT_PATH,filter=DATA_FILTER)
-        print(type(file_name))
-        if os.path.splitext(file_name)[1] in DATA_FILTER:
+        if file_name != '' and os.path.splitext(file_name)[1] in DATA_FILTER:
             with open(file_name, 'r') as stream:
                 reader = csv.reader(stream, delimiter=',')
                 data_type = None
@@ -212,61 +275,86 @@ class RegistrationDialog(QDialog):
                     self.tableWidget_world.setItem(rowPosition, 1, QTableWidgetItem(row[1]))
                     self.tableWidget_world.setItem(rowPosition, 2, QTableWidgetItem(row[2]))
 
+    def initializeRegistration(self, set_same_length=False):
+        # get source points and target points from tablewidget_world and tablewidget_model 
+        target_data = []
+        for row in range(self.tableWidget_world.rowCount()):
+            target_data.append([])
+            for col in range(self.tableWidget_world.columnCount()):
+                    target_data[row].append(float(self.tableWidget_world.item(row, col).text()))
+
+        source_data = []
+        for row in range(self.tableWidget_model.rowCount()):
+            source_data.append([])
+            for col in range(self.tableWidget_model.columnCount()):
+                    source_data[row].append(float(self.tableWidget_model.item(row, col).text()))
+
+        if set_same_length:
+            # take correspondence source and target data
+            num_valid_data = min(len(source_data), len(target_data))
+            source_data = source_data[:num_valid_data]
+            target_data = target_data[:num_valid_data]
+
+        registration = Registration(source_data, target_data)
+
+        return registration
 
     def registerLandmarks(self):
-        # get source points and target points from tablewidget_world and tablewidget_model 
-        target_data = []
-        for row in range(self.tableWidget_world.rowCount()):
-            target_data.append([])
-            for col in range(self.tableWidget_world.columnCount()):
-                    target_data[row].append(float(self.tableWidget_world.item(row, col).text()))
 
-        source_data = []
-        for row in range(self.tableWidget_model.rowCount()):
-            source_data.append([])
-            for col in range(self.tableWidget_model.columnCount()):
-                    source_data[row].append(float(self.tableWidget_model.item(row, col).text()))
-
-        # take correspondence source and target data
-        num_valid_data = min(len(source_data), len(target_data))
-        source_data = source_data[:num_valid_data]
-        target_data = target_data[:num_valid_data]
-
-        registration = Registration(source_data, target_data)
+        registration = self.initializeRegistration(set_same_length=True)
         registration.performLandmarkTransform()
         self.transformation_matrix = registration.getTransformationMatrix()
-        # display registration result in qt
-        self.label_registration_result.setText(str(self.transformation_matrix))
 
-        self.verifyRegistration(np.array(target_data))
+        transformed_targets = self.verifyRegistration(registration.target_numpy)
 
         if self.checkBox_save_to_file.isChecked():
             self.saveData()
+
+        # compute error
+        error = self.computeError(registration.source_numpy[registration.best_source_ind],\
+                                  registration.target_numpy[registration.best_target_ind])
+
+        # display registration result in qt
+        self.label_registration_result.setText(str(self.transformation_matrix))
 
     def registerICP(self):
-        # get source points and target points from tablewidget_world and tablewidget_model 
-        target_data = []
-        for row in range(self.tableWidget_world.rowCount()):
-            target_data.append([])
-            for col in range(self.tableWidget_world.columnCount()):
-                    target_data[row].append(float(self.tableWidget_world.item(row, col).text()))
 
-        source_data = []
-        for row in range(self.tableWidget_model.rowCount()):
-            source_data.append([])
-            for col in range(self.tableWidget_model.columnCount()):
-                    source_data[row].append(float(self.tableWidget_model.item(row, col).text()))
-
-        registration = Registration(source_data, target_data)
+        registration = self.initializeRegistration()
         registration.performICP()
         self.transformation_matrix = registration.getTransformationMatrix()
-        # display registration result in qt
-        self.label_registration_result.setText(str(self.transformation_matrix))
 
-        self.verifyRegistration(np.array(target_data))
+        transformed_targets = self.verifyRegistration(registration.target_numpy)
 
         if self.checkBox_save_to_file.isChecked():
             self.saveData()
+
+        # compute error
+        error = self.computeError(registration.source_numpy[registration.best_source_ind],\
+                                  registration.target_numpy[registration.best_target_ind])
+
+        # display registration result in qt
+        self.label_registration_result.setText(str(self.transformation_matrix))
+    
+    def registerHungarian(self):
+
+        registration = self.initializeRegistration()
+        registration.performICP()
+        transformation_align_centroids = registration.getTransformationMatrix()
+        registration.performRegistrationByHungarian(transformation_align_centroids)
+        self.transformation_matrix = registration.getTransformationMatrix()
+
+        self.transformation_matrix = np.matmul(transformation_align_centroids, self.transformation_matrix)
+        transformed_targets = self.verifyRegistration(registration.target_numpy)
+
+        if self.checkBox_save_to_file.isChecked():
+            self.saveData()
+        
+        # compute error
+        error = self.computeError(registration.source_numpy[registration.best_source_ind],\
+                                  transformed_targets[registration.best_target_ind])
+
+        # display registration result in qt
+        self.label_registration_result.setText(str(self.transformation_matrix) + '\n' + 'error: ' +str(error))
 
     def verifyRegistration(self, points):
         # transform world points to model space by registration result, visualize transformed points in viewer
@@ -275,15 +363,31 @@ class RegistrationDialog(QDialog):
         num_pts = len(points)
         points = np.concatenate((points, np.array([1.0]*num_pts).reshape((num_pts, 1))), axis=1)
         points = np.matmul(np.linalg.inv(self.transformation_matrix), points.T)
+        transformed_points = []
         for point in points.T:
             point = point[:3]
-            print(point)
+            transformed_points.append(point.tolist())
             actor = self.viewer.createPointActor(point, color=GREEN)
             self.viewer.addActor(actor)
 
+        transformed_points =np.array(transformed_points)
+
+        return transformed_points
+
+    def computeError(self, source, target):
+        total_dist = 0
+        for i in range(len(source)):
+            dist = np.linalg.norm(source[i] - target[i])
+            total_dist +=dist 
+            print("source: " + str(source[i]))
+            print("target: " + str(target[i]))
+        avg_dist = total_dist/len(source)
+
+        return avg_dist
+
     def saveData(self):
         file_name, _ = QFileDialog.getSaveFileName(self, 'Save File', directory=DEFAULT_PATH,filter=DATA_FILTER)
-        if os.path.splitext(file_name)[1] in DATA_FILTER:
+        if file_name != '' and os.path.splitext(file_name)[1] in DATA_FILTER:
             with open(file_name, 'wt') as stream:
                 writer = csv.writer(stream, lineterminator='\n')
                 # save table model
