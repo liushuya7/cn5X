@@ -96,7 +96,8 @@ class Registration():
 
         elif vtk_transformation is not None:
             transformation_matrix = Registration.getTransformationMatrixFromVtk(vtk_transformation.GetMatrix())
-
+            self.transformation_matrix = transformation_matrix
+            return 
         else:
             print("Error: no transformation matrix provided!")
 
@@ -235,9 +236,6 @@ class Registration():
         
     def performRegistrationByHungarian(self):
 
-        print("target numpy")
-        print(self.target_numpy)
-
         # choose arbitrary source point as pivot point
         pivot_source = self.source_numpy[0].copy()
         # fit a plane to source_centroided and self.target respectively
@@ -249,20 +247,19 @@ class Registration():
         best_source_ind = None
         best_target_ind = None
         best_transformation_matrix = None
+        best_rotation_matrix = None
+        best_transformed_source = None
 
         for pivot_target in self.target_numpy:
 
             self.transformation_matrix = None
 
+            # shift to pivot 
             source_pivot_centroided_numpy = self.pivotCentroid(pivot_source, pivot_target, source_numpy=self.source_numpy)
-            print("pivot")
-            print(source_pivot_centroided_numpy[:,:3])
 
-            c_source, normal_source = MeshProcessing.fitPlaneLTSQ(source_pivot_centroided_numpy)
             # align normal, get transformed source 
+            c_source, normal_source = MeshProcessing.fitPlaneLTSQ(source_pivot_centroided_numpy)
             source_normaled_numpy = self.alignNormals(source_pivot_centroided_numpy[0][:3].copy(), normal_source, normal_target, source_pivot_centroided_numpy)
-            print("normaled:")
-            print(source_normaled_numpy[:,:3])
 
             flip_axis = np.cross(normal_source, normal_target)
             flip_axis = flip_axis / np.linalg.norm(flip_axis)
@@ -278,7 +275,7 @@ class Registration():
                 rotation_matrix = r.as_matrix()
 
                 # unflipped case
-                source_transformed_numpy = Registration.applySimilarityTransform(rotation_matrix, source_normaled_numpy[0][:3].copy(), source_normaled_numpy)
+                source_transformed_numpy, pivot_rotation_matrix = Registration.applySimilarityTransform(rotation_matrix, source_normaled_numpy[0][:3].copy(), source_normaled_numpy, get_transformation=True)
                 cost, source_ind, target_ind = Registration.findCorrespondenceByHungarian(source_transformed_numpy[:,:3], self.target_numpy)
                 print("min cost")
                 print(min_cost)
@@ -288,9 +285,11 @@ class Registration():
                     best_source_ind = source_ind
                     best_target_ind = target_ind
                     best_transformation_matrix = self.transformation_matrix.copy()
+                    best_rotation_matrix = pivot_rotation_matrix
+                    best_transformed_source = source_transformed_numpy
 
                 # flipped case
-                source_transformed_numpy = Registration.applySimilarityTransform(rotation_matrix, source_flipped_numpy[0][:3].copy(), source_flipped_numpy)
+                source_transformed_numpy, pivot_rotation_matrix = Registration.applySimilarityTransform(rotation_matrix, source_flipped_numpy[0][:3].copy(), source_flipped_numpy, get_transformation=True)
                 cost, source_ind, target_ind = Registration.findCorrespondenceByHungarian(source_transformed_numpy[:,:3], self.target_numpy)
                 if cost < min_cost:
                     min_cost = cost
@@ -298,24 +297,32 @@ class Registration():
                     best_source_ind = source_ind
                     best_target_ind = target_ind
                     best_transformation_matrix = self.transformation_matrix.copy()
+                    best_rotation_matrix = pivot_rotation_matrix
+                    best_transformed_source = source_transformed_numpy
         
         # update self variables
         self.best_match_case = best_match_case
         print("best match case: " + best_match_case)
         self.best_source_ind = best_source_ind
         self.best_target_ind = best_target_ind
-        self.transformation_matrix = best_transformation_matrix
+        self.transformation_matrix = best_transformation_matrix.copy()
+        # print("best rotation matrix")
+        # print(best_rotation_matrix)
+        best_transformation_matrix = np.matmul(best_rotation_matrix, best_transformation_matrix)
 
-        if best_match_case == 'unflipped':
-            source = source_normaled_numpy[best_source_ind]
-        else:
-            # update self.transformation_matrix by flip
-            source = source_flipped_numpy[best_source_ind]
-            self.updateTransformationMatrix(new_transformation_matrix=flip_transformation_matrix)
+
+        # if best_match_case == 'unflipped':
+        #     source = source_normaled_numpy[best_source_ind]
+        # else:
+        #     # update self.transformation_matrix by flip
+        #     source = source_flipped_numpy[best_source_ind]
+        #     self.updateTransformationMatrix(new_transformation_matrix=flip_transformation_matrix)
+        # target = self.target_numpy[best_target_ind]
+        source = self.source_numpy[best_source_ind]
         target = self.target_numpy[best_target_ind]
 
-        # self.initializeSourceAndTarget(source, target)
-        # self.performLandmarkTransform()
+        self.initializeSourceAndTarget(source, target)
+        self.performLandmarkTransform()
 
     @staticmethod
     def computeError(source, target):
@@ -323,8 +330,8 @@ class Registration():
         for i in range(len(source)):
             dist = np.linalg.norm(source[i] - target[i])
             total_dist +=dist 
-            print("source: " + str(source[i]))
-            print("target: " + str(target[i]))
+            # print("source: " + str(source[i]))
+            # print("target: " + str(target[i]))
         avg_dist = total_dist/len(source)
 
         return avg_dist
