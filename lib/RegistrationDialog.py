@@ -13,8 +13,12 @@ from Registration import Registration
 import vtk
 import numpy as np
 import csv
-from robot_kins import CNC_5dof
+# from robot_kins import CNC_5dof
 from MeshProcessing import MeshProcessing
+from scipy.spatial.transform import Rotation
+
+import roslibpy
+import roslibpy.tf
 
 from compilOptions import grblCompilOptions
 
@@ -27,8 +31,12 @@ GREEN = (0,255,0)
 class RegistrationDialog(QDialog):
     ''' Registration dialog '''
 
-    def __init__(self, grbl: grblCom, viewer=None):
+    def __init__(self, grbl: grblCom, ros, viewer=None):
         super().__init__()
+
+        self.ros = ros
+        self.ros.on_ready(lambda: print('Registration (ROS Connection):', self.ros.is_connected))
+
         ui_dlgRegistration = os.path.join(self_dir, '../ui/registration.ui')
         self.__di = uic.loadUi(ui_dlgRegistration, self)
         self.transformation_matrix = None
@@ -58,11 +66,14 @@ class RegistrationDialog(QDialog):
         self.__di.pushButton_register_hungarian.pressed.connect(self.registerHungarian)
         self.__di.pushButton_load_data.pressed.connect(self.loadData)
 
-        self.robot = CNC_5dof()
+        # self.robot = CNC_5dof()
         self.x = 0
         self.y = 0
         self.z = 0
         self.joints = np.zeros((5,1))
+
+        self.tf_listener_robot = roslibpy.tf.TFClient(self.ros, "/W", rate=100, angular_threshold=0.001, translation_threshold=0.0001)
+        self.tf_listener_robot.subscribe("/T", self.updateRobotPose)
 
         # mesh processing
         if self.viewer.current_mesh_file:
@@ -72,6 +83,10 @@ class RegistrationDialog(QDialog):
 
         self.finished.connect(self.closeWindow)
         self.show()
+
+    def updateRobotPose(self, data):
+        # update robot realtime pose
+        self.robot_rt_pose = data
 
     def undoModel(self):
 
@@ -290,6 +305,28 @@ class RegistrationDialog(QDialog):
                         row.append(self.transformation_matrix[i,j])
                     writer.writerow(row)
 
+
+    @staticmethod
+    def convertToSE3(quat, tvec):
+        """
+        Converts quaternion and translation vector into SE3 lie group
+
+        Args:
+            quat: quaternion representation of rotation (scalar last)
+            tvec: translation vector (meters)
+
+        Returns:
+            tf: SE3 transformation (rotation + translation)
+        """
+        r = Rotation.from_quat(quat)
+        r_mat = r.as_matrix()
+        tvec = tvec.reshape((3,1))
+        tf = np.concatenate((r_mat, tvec), axis=1)
+        last_row = [[0, 0, 0, 1]]
+        tf = np.concatenate((tf, last_row), axis=0)
+        return tf
+
+
     @pyqtSlot(int)
     def on_sig_alarm(self, alarmNum: int):
         if self.is_probing:
@@ -303,22 +340,27 @@ class RegistrationDialog(QDialog):
                 tblPos = D[5:].split(",")
                 for i in range(5):
                     self.joints[i] = float(tblPos[i])
-                print(self.joints)
-                # self.x = float(tblPos[0])
-                # self.y = float(tblPos[1])
-                # self.z = float(tblPos[2])
+                # print(self.joints)
 
     @pyqtSlot()
     def on_sig_ok(self):
-        # print("OK")
+        print("OK")
         if self.is_probing:
-            # self.reg_pts.append([x,y,z])
             # do forward kinematics
-            tf_W_T = self.robot.fwd_kin(self.joints[0] + self.robot.offset_sensor[0], self.joints[1]+ self.robot.offset_sensor[1], self.joints[2] + self.robot.offset_sensor[2], self.joints[3], self.joints[4])
-            print(tf_W_T)
-            self.x = tf_W_T[0,3]
-            self.y = tf_W_T[1,3]
-            self.z = tf_W_T[2,3]
+            # tf_W_T = self.robot.fwd_kin(self.joints[0] + self.robot.offset_sensor[0], self.joints[1]+ self.robot.offset_sensor[1], self.joints[2] + self.robot.offset_sensor[2], self.joints[3], self.joints[4])
+            # print(tf_W_T)
+            robot_quat = [self.robot_rt_pose['rotation']['x'], self.robot_rt_pose['rotation']['y'], self.robot_rt_pose['rotation']['z'], self.robot_rt_pose['rotation']['w']]
+            robot_tvec = [self.robot_rt_pose['translation']['x'], self.robot_rt_pose['translation']['y'], self.robot_rt_pose['translation']['z']]
+            tf_T_W = RegistrationDialog.convertToSE3(np.asarray(robot_quat), np.asarray(robot_tvec))
+            tf_S_T = np.asarray( [[1, 0, 0, 0.027289],
+                                  [0, 1, 0, 0.00844],
+                                  [0, 0, 1, -0.031],
+                                  [0, 0, 0, 1]] )
+            tf_S_W = np.matmul(tf_S_T, tf_T_W)
+
+            self.x = tf_S_W[0,3]
+            self.y = tf_S_W[1,3]
+            self.z = tf_S_W[2,3]
             rowPosition = self.tableWidget_world.rowCount()
             self.tableWidget_world.insertRow(rowPosition)
             self.tableWidget_world.setItem(rowPosition, 0, QTableWidgetItem(str(self.x)))

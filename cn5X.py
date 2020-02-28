@@ -564,7 +564,7 @@ class GrblMainwindow(QtWidgets.QMainWindow):
   @pyqtSlot()
   def on_mnu_ImplantRegistration(self):
     ''' Implant registration dialog'''
-    self.registration_dialog = RegistrationDialog(self.__grblCom, viewer = self.vtk_viewer)
+    self.registration_dialog = RegistrationDialog(self.__grblCom, self.ros, viewer = self.vtk_viewer)
     
   @pyqtSlot()
   def on_mnu_HandEyeCalibration(self):
