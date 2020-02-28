@@ -101,7 +101,7 @@ class Registration():
             print("Error: no transformation matrix provided!")
 
         if self.transformation_matrix is not None:
-            self.transformation_matrix = np.matmul(self.transformation_matrix, transformation_matrix)
+            self.transformation_matrix = np.matmul(transformation_matrix, self.transformation_matrix)
         else:
             self.transformation_matrix = transformation_matrix
 
@@ -217,6 +217,10 @@ class Registration():
         print(self.target_numpy)
         # align centroids, get transformed source
         source_centroided_numpy = self.alignCentroids()
+        print("centroided:")
+        print(source_centroided_numpy[:,:3])
+        print("transformation matrix:")
+        print(self.transformation_matrix)
 
         # fit a plane to source_centroided and self.target respectively
         c_target, normal_target = MeshProcessing.fitPlaneLTSQ(self.target_numpy)
@@ -224,12 +228,19 @@ class Registration():
 
         # align normal, get transformed source 
         source_normaled_numpy = self.alignNormals(normal_source, normal_target, source_centroided_numpy)
+        print("normaled:")
+        print(source_normaled_numpy[:,:3])
+        print("transformation matrix:")
+        print(self.transformation_matrix)
 
-        centroid = np.mean(source_normaled_numpy, axis=0)[:3]
+        centroid_normaled = np.mean(source_normaled_numpy, axis=0)[:3]
+
         flip_axis = np.cross(normal_source, normal_target)
+        flip_axis = flip_axis / np.linalg.norm(flip_axis)
         r = R.from_rotvec(np.pi * flip_axis)
         rotation_matrix_flipped = r.as_matrix()
-        source_flipped_numpy, flip_transformation_matrix = Registration.applySimilarityTransform(rotation_matrix_flipped, centroid, source_normaled_numpy, get_transformation=True)
+        source_flipped_numpy, flip_transformation_matrix = Registration.applySimilarityTransform(rotation_matrix_flipped, centroid_normaled, source_normaled_numpy, get_transformation=True)
+        centroid_flipped = np.mean(source_normaled_numpy, axis=0)[:3]
         print("source flipped numpy")
         print(source_flipped_numpy[:,:3])
 
@@ -244,7 +255,7 @@ class Registration():
             rotation_matrix = r.as_matrix()
 
             # unflipped case
-            source_transformed_numpy = Registration.applySimilarityTransform(rotation_matrix, centroid, source_normaled_numpy)
+            source_transformed_numpy = Registration.applySimilarityTransform(rotation_matrix, centroid_normaled, source_normaled_numpy)
             cost, source_ind, target_ind = Registration.findCorrespondenceByHungarian(source_transformed_numpy[:,:3], self.target_numpy)
             print("min cost")
             print(min_cost)
@@ -255,7 +266,7 @@ class Registration():
                 best_target_ind = target_ind
 
             # flipped case
-            source_transformed_numpy = Registration.applySimilarityTransform(rotation_matrix, centroid, source_flipped_numpy)
+            source_transformed_numpy = Registration.applySimilarityTransform(rotation_matrix, centroid_flipped, source_flipped_numpy)
             cost, source_ind, target_ind = Registration.findCorrespondenceByHungarian(source_transformed_numpy[:,:3], self.target_numpy)
             if cost < min_cost:
                 min_cost = cost
@@ -307,7 +318,7 @@ class Registration():
         """
         
         tvec = tvec.reshape((3,1))
-        tvec = np.matmul(rotation_matrix, tvec) - tvec
+        tvec -= np.matmul(rotation_matrix, tvec)
         transformation = np.concatenate((rotation_matrix, tvec), axis=1)
         last_row = [[0, 0, 0, 1]]
         transformation = np.concatenate((transformation, last_row), axis=0)

@@ -31,6 +31,7 @@ class RegistrationDialog(QDialog):
         super().__init__()
         ui_dlgRegistration = os.path.join(self_dir, '../ui/registration.ui')
         self.__di = uic.loadUi(ui_dlgRegistration, self)
+        self.transformation_matrix = None
          # change table header names
         self.table_healder = ['x','y','z']
         self.tableWidget_model.setHorizontalHeaderLabels(self.table_healder)
@@ -149,24 +150,22 @@ class RegistrationDialog(QDialog):
 
     def registerLandmarks(self):
 
-        print("not implemented yet")
-        # registration = self.initializeRegistration(set_same_length=True)
-        # registration.performLandmarkTransform()
-        # self.transformation_matrix = registration.getTransformationMatrix()
+        registration = self.initializeRegistration(set_same_length=True)
+        registration.performLandmarkTransform()
+        self.transformation_matrix = registration.transformation_matrix
 
-        # transformed_targets = self.verifyRegistration(registration.target_numpy)
+        transformed_source = self.verifyRegistration(registration.source_numpy)
 
-        # if self.checkBox_save_to_file.isChecked():
-        #     self.saveData()
+        if self.checkBox_save_to_file.isChecked():
+            self.saveData()
 
-        # # compute error
-        # error = Registration.computeError(registration.source_numpy,\
-        #                           transformed_targets)
-        # print("error")
-        # print(error)
+        # compute error
+        error = Registration.computeError(transformed_source, registration.target_numpy)
+        print("error")
+        print(error)
 
-        # # display registration result in qt
-        # self.label_registration_result.setText(str(self.transformation_matrix))
+        # display registration result in qt
+        self.label_registration_result.setText(str(self.transformation_matrix))
 
     def registerICP(self):
         print("not implemented yet")
