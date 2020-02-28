@@ -235,6 +235,25 @@ class Registration():
         self.updateTransformationMatrix(vtk_transformation=lm_transform)
         
     def performRegistrationByHungarian(self):
+        """ Function to perform registration by finding correspondences with Hungarian first. 
+            Steps:
+            1) Choose arbitrary point in source as pivot source(point 0 here), 
+               iterate target points to be pivot target, transform source to target by pivot.
+            2) For every iteration in (1), fit plane to transformed source and target,
+                align normal of source plane to normal of target plane and transform source points.
+            3) From 0 to 2*pi, rotate transformed source points in (2) around pivot point and
+               along normal vector, and then transform source points.
+            4) Use Hungarian to find correspondences in (3).
+            5) Find the global optimal correspondence with lowest Hungarian cost from steps (1) to (4).
+            6) Do landmark transform (2 sets of 3D points with known correspondences) to find the transformation
+               from source to target.
+        Args:
+            None
+
+        Returns:
+            None
+
+        """
 
         # choose arbitrary source point as pivot point
         pivot_source = self.source_numpy[0].copy()
@@ -246,30 +265,31 @@ class Registration():
         best_match_case = 'unflipped'
         best_source_ind = None
         best_target_ind = None
-        best_transformation_matrix = None
-        best_rotation_matrix = None
         best_transformed_source = None
 
         for pivot_target in self.target_numpy:
 
             self.transformation_matrix = None
-
             # shift to pivot 
             source_pivot_centroided_numpy = self.pivotCentroid(pivot_source, pivot_target, source_numpy=self.source_numpy)
 
             # align normal, get transformed source 
+            # test if align normal is needed
             c_source, normal_source = MeshProcessing.fitPlaneLTSQ(source_pivot_centroided_numpy)
-            source_normaled_numpy = self.alignNormals(source_pivot_centroided_numpy[0][:3].copy(), normal_source, normal_target, source_pivot_centroided_numpy)
+            if np.dot(normal_target, normal_source) < 0.999:
+                source_normaled_numpy = self.alignNormals(source_pivot_centroided_numpy[0][:3].copy(), normal_source, normal_target, source_pivot_centroided_numpy)
+            else:
+                source_normaled_numpy = source_pivot_centroided_numpy
 
+            # generate flip case
             flip_axis = np.cross(normal_source, normal_target)
             flip_axis = flip_axis / np.linalg.norm(flip_axis)
             r = R.from_rotvec(np.pi * flip_axis)
             rotation_matrix_flipped = r.as_matrix()
             source_flipped_numpy, flip_transformation_matrix = Registration.applySimilarityTransform(rotation_matrix_flipped, source_normaled_numpy[0][:3].copy(), source_normaled_numpy, get_transformation=True)
-            print("source flipped numpy")
-            print(source_flipped_numpy[:,:3])
 
-            # rotate source_normaled_numpy with normal_target, find the one with smallest error
+            # rotate source_normaled_numpy with normal_target, find the correspondences by Hungarian cost
+            # save the correspondence if the cost is lower than current minimum cost
             for angle in np.linspace(0, 2*np.pi, num = 100):
                 r = R.from_rotvec(angle * normal_target)
                 rotation_matrix = r.as_matrix()
@@ -277,15 +297,11 @@ class Registration():
                 # unflipped case
                 source_transformed_numpy, pivot_rotation_matrix = Registration.applySimilarityTransform(rotation_matrix, source_normaled_numpy[0][:3].copy(), source_normaled_numpy, get_transformation=True)
                 cost, source_ind, target_ind = Registration.findCorrespondenceByHungarian(source_transformed_numpy[:,:3], self.target_numpy)
-                print("min cost")
-                print(min_cost)
                 if cost < min_cost:
                     min_cost = cost
                     best_match_case = 'unflipped'
                     best_source_ind = source_ind
                     best_target_ind = target_ind
-                    best_transformation_matrix = self.transformation_matrix.copy()
-                    best_rotation_matrix = pivot_rotation_matrix
                     best_transformed_source = source_transformed_numpy
 
                 # flipped case
@@ -296,31 +312,18 @@ class Registration():
                     best_match_case = 'flipped'
                     best_source_ind = source_ind
                     best_target_ind = target_ind
-                    best_transformation_matrix = self.transformation_matrix.copy()
-                    best_rotation_matrix = pivot_rotation_matrix
                     best_transformed_source = source_transformed_numpy
         
         # update self variables
         self.best_match_case = best_match_case
         print("best match case: " + best_match_case)
+        print("min cost from Hungarian: " +str(min_cost))
         self.best_source_ind = best_source_ind
         self.best_target_ind = best_target_ind
-        self.transformation_matrix = best_transformation_matrix.copy()
-        # print("best rotation matrix")
-        # print(best_rotation_matrix)
-        best_transformation_matrix = np.matmul(best_rotation_matrix, best_transformation_matrix)
 
-
-        # if best_match_case == 'unflipped':
-        #     source = source_normaled_numpy[best_source_ind]
-        # else:
-        #     # update self.transformation_matrix by flip
-        #     source = source_flipped_numpy[best_source_ind]
-        #     self.updateTransformationMatrix(new_transformation_matrix=flip_transformation_matrix)
-        # target = self.target_numpy[best_target_ind]
+        # re-assign self.source and self.target to perform landmark transforma
         source = self.source_numpy[best_source_ind]
         target = self.target_numpy[best_target_ind]
-
         self.initializeSourceAndTarget(source, target)
         self.performLandmarkTransform()
 

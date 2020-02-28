@@ -161,11 +161,9 @@ class RegistrationDialog(QDialog):
 
         # compute error
         error = Registration.computeError(transformed_source, registration.target_numpy)
-        print("error")
-        print(error)
 
         # display registration result in qt
-        self.label_registration_result.setText(str(self.transformation_matrix))
+        self.label_registration_result.setText(str(self.transformation_matrix) + '\n' + 'error: ' +str(error))
 
     def registerICP(self):
         print("not implemented yet")
@@ -257,8 +255,6 @@ class RegistrationDialog(QDialog):
                 if self.transformation_matrix is not None:
                     self.transformation_matrix = np.array(self.transformation_matrix)
                     self.label_registration_result.setText(str(self.transformation_matrix))
-
-
 
     def saveData(self):
         file_name, _ = QFileDialog.getSaveFileName(self, 'Save File', directory=DATA_PATH,filter=DATA_FILTER)
