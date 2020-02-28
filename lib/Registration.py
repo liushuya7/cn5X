@@ -130,7 +130,29 @@ class Registration():
 
         return source_centroided_numpy.T
 
-    def alignNormals(self, normal_source, normal_target, source_numpy):
+    def pivotCentroid(self, pivot_source, pivot_target, source_numpy):
+        """ Function to make source_numpy centroided around pivot
+            Function would update self.source and self.target for further registration.
+            Function would update self.transformation_matrix.
+        Args:
+            source_numpy: numpy array of shape (Nx4).
+
+        Returns:
+           transformed source numpy array of shape (Nx4)
+
+        """
+        num_pts = len(source_numpy)
+        source_numpy_homogeneous = np.concatenate((source_numpy, np.array([1.0]*num_pts).reshape((num_pts, 1))), axis=1)
+
+        tvec = pivot_target - pivot_source
+        transformation_matrix = np.concatenate((np.concatenate((np.eye(3), tvec.reshape(3,1)), axis=1), np.array([[0,0,0,1]])), axis=0)
+        source_transformed_numpy = np.matmul(transformation_matrix, source_numpy_homogeneous.T) # (4xN)
+
+        self.updateTransformationMatrix(new_transformation_matrix=transformation_matrix)
+
+        return source_transformed_numpy.T
+
+    def alignNormals(self, pivot, normal_source, normal_target, source_numpy):
         """ Function to align normal of source plane and target plane. 
             Function would update self.source and self.target for further registration.
             Function would update self.transformation_matrix.
@@ -154,7 +176,7 @@ class Registration():
         print(angle)
         rotation = R.from_rotvec(axis*angle)
         rotation_matrix = rotation.as_matrix()
-        tvec = np.mean(source_numpy, axis=0)[:3]
+        tvec = pivot.reshape((3,1)) 
         source_transformed_numpy, transformation_matrix = Registration.applySimilarityTransform(rotation_matrix, tvec, source_numpy, True)
         
         self.updateTransformationMatrix(new_transformation_matrix=transformation_matrix)
@@ -215,70 +237,74 @@ class Registration():
 
         print("target numpy")
         print(self.target_numpy)
-        # align centroids, get transformed source
-        source_centroided_numpy = self.alignCentroids()
-        print("centroided:")
-        print(source_centroided_numpy[:,:3])
-        print("transformation matrix:")
-        print(self.transformation_matrix)
 
+        # choose arbitrary source point as pivot point
+        pivot_source = self.source_numpy[0].copy()
         # fit a plane to source_centroided and self.target respectively
         c_target, normal_target = MeshProcessing.fitPlaneLTSQ(self.target_numpy)
-        c_source, normal_source = MeshProcessing.fitPlaneLTSQ(source_centroided_numpy)
 
-        # align normal, get transformed source 
-        source_normaled_numpy = self.alignNormals(normal_source, normal_target, source_centroided_numpy)
-        print("normaled:")
-        print(source_normaled_numpy[:,:3])
-        print("transformation matrix:")
-        print(self.transformation_matrix)
-
-        centroid_normaled = np.mean(source_normaled_numpy, axis=0)[:3]
-
-        flip_axis = np.cross(normal_source, normal_target)
-        flip_axis = flip_axis / np.linalg.norm(flip_axis)
-        r = R.from_rotvec(np.pi * flip_axis)
-        rotation_matrix_flipped = r.as_matrix()
-        source_flipped_numpy, flip_transformation_matrix = Registration.applySimilarityTransform(rotation_matrix_flipped, centroid_normaled, source_normaled_numpy, get_transformation=True)
-        centroid_flipped = np.mean(source_normaled_numpy, axis=0)[:3]
-        print("source flipped numpy")
-        print(source_flipped_numpy[:,:3])
-
-        # rotate source_normaled_numpy with normal_target, find the one with smallest error
+        # iterate over self.target_numpy to find best match of pivot point
         min_cost = float('inf')
         best_match_case = 'unflipped'
         best_source_ind = None
         best_target_ind = None
+        best_transformation_matrix = None
 
-        for angle in np.linspace(0, 2*np.pi, num = 100):
-            r = R.from_rotvec(angle * normal_target)
-            rotation_matrix = r.as_matrix()
+        for pivot_target in self.target_numpy:
 
-            # unflipped case
-            source_transformed_numpy = Registration.applySimilarityTransform(rotation_matrix, centroid_normaled, source_normaled_numpy)
-            cost, source_ind, target_ind = Registration.findCorrespondenceByHungarian(source_transformed_numpy[:,:3], self.target_numpy)
-            print("min cost")
-            print(min_cost)
-            if cost < min_cost:
-                min_cost = cost
-                best_match_case = 'unflipped'
-                best_source_ind = source_ind
-                best_target_ind = target_ind
+            self.transformation_matrix = None
 
-            # flipped case
-            source_transformed_numpy = Registration.applySimilarityTransform(rotation_matrix, centroid_flipped, source_flipped_numpy)
-            cost, source_ind, target_ind = Registration.findCorrespondenceByHungarian(source_transformed_numpy[:,:3], self.target_numpy)
-            if cost < min_cost:
-                min_cost = cost
-                best_match_case = 'flipped'
-                best_source_ind = source_ind
-                best_target_ind = target_ind
+            source_pivot_centroided_numpy = self.pivotCentroid(pivot_source, pivot_target, source_numpy=self.source_numpy)
+            print("pivot")
+            print(source_pivot_centroided_numpy[:,:3])
+
+            c_source, normal_source = MeshProcessing.fitPlaneLTSQ(source_pivot_centroided_numpy)
+            # align normal, get transformed source 
+            source_normaled_numpy = self.alignNormals(source_pivot_centroided_numpy[0][:3].copy(), normal_source, normal_target, source_pivot_centroided_numpy)
+            print("normaled:")
+            print(source_normaled_numpy[:,:3])
+
+            flip_axis = np.cross(normal_source, normal_target)
+            flip_axis = flip_axis / np.linalg.norm(flip_axis)
+            r = R.from_rotvec(np.pi * flip_axis)
+            rotation_matrix_flipped = r.as_matrix()
+            source_flipped_numpy, flip_transformation_matrix = Registration.applySimilarityTransform(rotation_matrix_flipped, source_normaled_numpy[0][:3].copy(), source_normaled_numpy, get_transformation=True)
+            print("source flipped numpy")
+            print(source_flipped_numpy[:,:3])
+
+            # rotate source_normaled_numpy with normal_target, find the one with smallest error
+            for angle in np.linspace(0, 2*np.pi, num = 100):
+                r = R.from_rotvec(angle * normal_target)
+                rotation_matrix = r.as_matrix()
+
+                # unflipped case
+                source_transformed_numpy = Registration.applySimilarityTransform(rotation_matrix, source_normaled_numpy[0][:3].copy(), source_normaled_numpy)
+                cost, source_ind, target_ind = Registration.findCorrespondenceByHungarian(source_transformed_numpy[:,:3], self.target_numpy)
+                print("min cost")
+                print(min_cost)
+                if cost < min_cost:
+                    min_cost = cost
+                    best_match_case = 'unflipped'
+                    best_source_ind = source_ind
+                    best_target_ind = target_ind
+                    best_transformation_matrix = self.transformation_matrix.copy()
+
+                # flipped case
+                source_transformed_numpy = Registration.applySimilarityTransform(rotation_matrix, source_flipped_numpy[0][:3].copy(), source_flipped_numpy)
+                cost, source_ind, target_ind = Registration.findCorrespondenceByHungarian(source_transformed_numpy[:,:3], self.target_numpy)
+                if cost < min_cost:
+                    min_cost = cost
+                    best_match_case = 'flipped'
+                    best_source_ind = source_ind
+                    best_target_ind = target_ind
+                    best_transformation_matrix = self.transformation_matrix.copy()
         
         # update self variables
         self.best_match_case = best_match_case
         print("best match case: " + best_match_case)
         self.best_source_ind = best_source_ind
         self.best_target_ind = best_target_ind
+        self.transformation_matrix = best_transformation_matrix
 
         if best_match_case == 'unflipped':
             source = source_normaled_numpy[best_source_ind]
@@ -288,8 +314,8 @@ class Registration():
             self.updateTransformationMatrix(new_transformation_matrix=flip_transformation_matrix)
         target = self.target_numpy[best_target_ind]
 
-        self.initializeSourceAndTarget(source, target)
-        self.performLandmarkTransform()
+        # self.initializeSourceAndTarget(source, target)
+        # self.performLandmarkTransform()
 
     @staticmethod
     def computeError(source, target):
