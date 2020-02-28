@@ -139,8 +139,7 @@ class CameraDialog(QDialog):
 			thread = ImageWindowThread(img_name, img)
 			self.window_threads.append(thread)
 
-		# TODO: hard code camera intrinsic parameters here, need to feed in the parameters in a neat way
-
+		# TODO: need to feed in the parameters in a neat way, currently hard code camera intrinsic parameters here
 		mtx=np.array([[1.37347548e+03, 0, 9.61674092e+02],
 		                                    [0, 1.37389297e+03, 5.21102993e+02],
 		                                    [0, 0, 1]]);
@@ -243,8 +242,12 @@ class CameraDialog(QDialog):
 			self.imgs[img_id] = img
 			self.poses[img_id] = CameraDialog.convertToSE3(np.array(camera_poses[img_id][:3]), np.array(camera_poses[img_id][3:]))
 
-		# TODO: hard code camera intrinsic parameters here, need to feed in the parameters in a neat way
+		# return if no input files
+		if len(self.imgs_key_to_id) == 0:
+			prin("No files selected!")
+			return 
 
+		# TODO: need to feed in the parameters in a neat way, currently hard code camera intrinsic parameters here
 		mtx=np.array([[1.37347548e+03, 0, 9.61674092e+02],
 		                                    [0, 1.37389297e+03, 5.21102993e+02],
 		                                    [0, 0, 1]]);
@@ -260,33 +263,37 @@ class CameraDialog(QDialog):
 		feature_points_1 = np.array(feature_points_1)
 		feature_points_2 = np.array(feature_points_2)
 
-		# # feature_points should be sorted by pixel-x-coordinate in decreasing order by default
-		# # extract intersection points, set threshold to be 2 pixel for now
-		# points_for_triangulation_1 = []
-		# points_for_triangulation_2 = []
-		# threshold = 5
-		# for point in feature_points_1:
-		# 	difference = abs(feature_points_2 - point)[:,0]
-		# 	ret = np.where(difference < threshold)
-		# 	potential_correspondence_id = ret[0]
-		# 	if len(potential_correspondence_id) == 1:
-		# 		# TODO: need to handle case for multiple potential_correspondences	
-		# 		points_for_triangulation_1.append(point.tolist())
-		# 		points_for_triangulation_2.append(feature_points_2[potential_correspondence_id].flatten().tolist())
+		# check to match features vertically or horizontally in images
+		to_match_vertically = self.__dl.checkBox_match_vertically.isChecked()
+		threshold = 5 # debug: need to tune for good and robust reconstruction
 
-		# feature_points should be sorted by pixel-y-coordinate in decreasing order by default
-		# extract intersection points, set threshold to be 2 pixel for now
-		points_for_triangulation_1 = []
-		points_for_triangulation_2 = []
-		threshold = 5
-		for point in feature_points_1:
-			difference = abs(feature_points_2 - point)[:,1]
-			ret = np.where(difference < threshold)
-			potential_correspondence_id = ret[0]
-			if len(potential_correspondence_id) == 1:
-				# TODO: need to handle case for multiple potential_correspondences	
-				points_for_triangulation_1.append(point.tolist())
-				points_for_triangulation_2.append(feature_points_2[potential_correspondence_id].flatten().tolist())
+		if to_match_vertically:
+			# feature_points should be sorted by pixel-x-coordinate in decreasing order by default
+			# extract intersection points, set threshold to be 2 pixel for now
+			points_for_triangulation_1 = []
+			points_for_triangulation_2 = []
+			for point in feature_points_1:
+				difference = abs(feature_points_2 - point)[:,0]
+				ret = np.where(difference < threshold)
+				potential_correspondence_id = ret[0]
+				if len(potential_correspondence_id) == 1:
+					# TODO: need to handle case for multiple potential_correspondences	
+					points_for_triangulation_1.append(point.tolist())
+					points_for_triangulation_2.append(feature_points_2[potential_correspondence_id].flatten().tolist())
+		else:
+			# feature_points should be sorted by pixel-y-coordinate in decreasing order by default
+			# extract intersection points, set threshold to be 2 pixel for now
+			points_for_triangulation_1 = []
+			points_for_triangulation_2 = []
+			threshold = 5
+			for point in feature_points_1:
+				difference = abs(feature_points_2 - point)[:,1]
+				ret = np.where(difference < threshold)
+				potential_correspondence_id = ret[0]
+				if len(potential_correspondence_id) == 1:
+					# TODO: need to handle case for multiple potential_correspondences	
+					points_for_triangulation_1.append(point.tolist())
+					points_for_triangulation_2.append(feature_points_2[potential_correspondence_id].flatten().tolist())
 
 		points_for_triangulation_1 = np.array(points_for_triangulation_1)
 		points_for_triangulation_2 = np.array(points_for_triangulation_2)
@@ -295,4 +302,5 @@ class CameraDialog(QDialog):
 		print(points_for_triangulation_1)
 		print("pts2:")
 		print(points_for_triangulation_2)
+
 		self.reconstructPoints(points_for_triangulation_1, points_for_triangulation_2)

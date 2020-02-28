@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>351</width>
-    <height>294</height>
+    <height>328</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -75,6 +75,13 @@
           <widget class="QLabel" name="label_2">
            <property name="text">
             <string>3D Reconstruction</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="checkBox_match_vertically">
+           <property name="text">
+            <string>Match features vertically</string>
            </property>
           </widget>
          </item>
