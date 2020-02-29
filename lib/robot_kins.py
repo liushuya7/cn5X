@@ -4,7 +4,7 @@ class CNC_5dof:
 
   def __init__(self):
     print("Initializing CNC_5dof")
-    self.offset_sensor = [30, 5, 0]
+    self.offset_sensor = [27.289, 0.844, -31.7]
     self.Lx = 100
     self.Ly = -200
     self.Lz = 280
