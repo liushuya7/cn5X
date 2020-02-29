@@ -3,7 +3,7 @@ import os
 import vtk
 import numpy as np
 import csv
-from MeshProcessing import MeshProcessing
+from MeshProcessing import MeshProcessing, createPointActor, createLineActor, createPlaneActor
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial import distance_matrix
 from scipy.spatial.transform import Rotation as R
@@ -390,5 +390,185 @@ class Registration():
                 transformation_mat[i,j] = transformation_matrix.GetElement(i,j)
 
         return transformation_mat 
+
+
+def main():
+    RED = (255,0,0)
+    GREEN = (0,255,0)
+    BLUE = (0,0,255)
+
+    file_name = '../mesh/implant_registration_pts.stl'
+    mesh_processor = MeshProcessing(file_name)
+
+    ## VTK 
+    # load stl model
+    reader = vtk.vtkSTLReader()
+    reader.SetFileName(file_name)
+    # mapper 
+    mapper = vtk.vtkPolyDataMapper()
+    if vtk.VTK_MAJOR_VERSION <= 5:
+        mapper.SetInput(reader.GetOutput())
+    else:
+        mapper.SetInputConnection(reader.GetOutputPort())
+    actor = vtk.vtkActor()
+    actor.SetMapper(mapper)
+
+    # render setting
+    ren = vtk.vtkRenderer()
+    renWin = vtk.vtkRenderWindow()
+    renWin.AddRenderer(ren)
+    iren = vtk.vtkRenderWindowInteractor()
+    iren.SetInteractorStyle(vtk.vtkInteractorStyleTrackballCamera())
+    iren.SetRenderWindow(renWin)
+    ren.AddActor(actor)
+
+    # render feature points in viewer
+    target_numpy = mesh_processor.extractFeaturePoints()
+    for point in target_numpy:
+        actor = createPointActor(point,point_size=10, color=RED)
+        ren.AddActor(actor)
+
+    # load world points
+    source_numpy = []
+    file_csv = '../data/automatic_3d_points_for_publication.csv'
+    with open(file_csv, 'r') as stream:
+        reader = csv.reader(stream, delimiter=',')
+        for row in reader:
+            row = [float(value) for value in row]
+            source_numpy.append(row)
+    source_numpy = np.array(source_numpy)
+    # for point in source_numpy:
+    #     actor = createPointActor(point, color=GREEN)
+    #     ren.AddActor(actor)
+
+    # registration
+    registration = Registration(source_numpy, target_numpy)
+    # choose arbitrary source point as pivot point
+    pivot_source = source_numpy[0].copy()
+    # fit a plane to target 
+    c_target, normal_target = MeshProcessing.fitPlaneLTSQ(registration.target_numpy)
+    centroid_target = mesh_processor.mesh.centroid
+    normal_end_target = centroid_target - normal_target*50
+    # actor = createLineActor(centroid_target, normal_end_target, color=BLUE)
+    # ren.AddActor(actor)
+
+    # iterate over target_numpy to find best match of pivot point
+    min_cost = float('inf')
+    best_match_case = 'unflipped'
+    best_source_ind = None
+    best_target_ind = None
+    best_transformed_source = None
+
+    for i, pivot_target in enumerate(target_numpy):
+        # if i == 0:
+
+        # shift to pivot 
+        source_pivot_centroided_numpy = registration.pivotCentroid(pivot_source, pivot_target, source_numpy=source_numpy)
+        # # visualization for source_centroided_numpy
+        # for point in source_pivot_centroided_numpy:
+        #     point = point[:3]
+        #     actor = createPointActor(point, color=GREEN)
+        #     ren.AddActor(actor)
+
+
+        # fit a plane to source_centroided
+        # align normal, get transformed source 
+        # test if align normal is needed
+
+        c_source, normal_source = MeshProcessing.fitPlaneLTSQ(source_pivot_centroided_numpy)
+        # # visualization for plane fitting
+        # centroid_source = np.mean(source_pivot_centroided_numpy, axis=0)[:3]
+        # print(centroid_source)
+        # normal_source_target = centroid_source + normal_source*50
+        # actor = createLineActor(centroid_source, normal_source_target, color=BLUE)
+        # ren.AddActor(actor)
+        # actor = createPlaneActor(centroid_source, normal_source, offset=0, size=100)
+        # ren.AddActor(actor)
+
+
+        if np.dot(normal_target, normal_source) < 0.999:
+            source_normaled_numpy = registration.alignNormals(source_pivot_centroided_numpy[0][:3].copy(), normal_source, normal_target, source_pivot_centroided_numpy)
+        else:
+            source_normaled_numpy = source_pivot_centroided_numpy
+
+        # # visualization for source_normaled_numpy
+        # for point in source_normaled_numpy:
+        #     point = point[:3]
+        #     actor = createPointActor(point, color=GREEN)
+        #     ren.AddActor(actor)
+        # c_source, normal_source = MeshProcessing.fitPlaneLTSQ(source_normaled_numpy)
+        # centroid_source = np.mean(source_normaled_numpy, axis=0)[:3]
+        # print(centroid_source)
+        # normal_source_target = centroid_source - normal_source*50
+        # actor = createLineActor(centroid_source, normal_source_target, color=BLUE)
+        # ren.AddActor(actor)
+        # actor = createPlaneActor(centroid_source, normal_source, offset=0, size=100)
+        # ren.AddActor(actor)
+            
+            
+
+        # generate flip case
+        flip_axis = np.cross(normal_source, normal_target)
+        flip_axis = flip_axis / np.linalg.norm(flip_axis)
+        r = R.from_rotvec(np.pi * flip_axis)
+        rotation_matrix_flipped = r.as_matrix()
+        source_flipped_numpy, flip_transformation_matrix = Registration.applySimilarityTransform(rotation_matrix_flipped, source_normaled_numpy[0][:3].copy(), source_normaled_numpy, get_transformation=True)
+
+        # rotate source_normaled_numpy with normal_target, find the correspondences by Hungarian cost
+        # save the correspondence if the cost is lower than current minimum cost
+        for angle in np.linspace(0, 2*np.pi, num = 100):
+            r = R.from_rotvec(angle * normal_target)
+            rotation_matrix = r.as_matrix()
+
+            # unflipped case
+            source_transformed_numpy, pivot_rotation_matrix = Registration.applySimilarityTransform(rotation_matrix, source_normaled_numpy[0][:3].copy(), source_normaled_numpy, get_transformation=True)
+            cost, source_ind, target_ind = Registration.findCorrespondenceByHungarian(source_transformed_numpy[:,:3], target_numpy)
+            if cost < min_cost:
+                min_cost = cost
+                best_match_case = 'unflipped'
+                best_source_ind = source_ind
+                best_target_ind = target_ind
+                best_transformed_source = source_transformed_numpy
+
+            # flipped case
+            source_transformed_numpy, pivot_rotation_matrix = Registration.applySimilarityTransform(rotation_matrix, source_flipped_numpy[0][:3].copy(), source_flipped_numpy, get_transformation=True)
+            cost, source_ind, target_ind = Registration.findCorrespondenceByHungarian(source_transformed_numpy[:,:3], target_numpy)
+            if cost < min_cost:
+                min_cost = cost
+                best_match_case = 'flipped'
+                best_source_ind = source_ind
+                best_target_ind = target_ind
+                best_transformed_source = source_transformed_numpy
+        
+    # update self variables
+    print("best match case: " + best_match_case)
+    print("min cost from Hungarian: " +str(min_cost))
+
+    # re-assign self.source and self.target to perform landmark transforma
+    print(best_source_ind)
+    print(best_target_ind)
+    source = registration.source_numpy[best_source_ind]
+    target = registration.target_numpy[best_target_ind]
+    registration.initializeSourceAndTarget(source, target)
+    registration.performLandmarkTransform()
+
+    num_pts = len(source_numpy)
+    points = np.concatenate((source_numpy, np.array([1.0]*num_pts).reshape((num_pts, 1))), axis=1)
+    points = np.matmul(registration.transformation_matrix, points.T)
+    transformed_points = []
+    for point in points.T:
+        point = point[:3]
+        transformed_points.append(point.tolist())
+        actor = createPointActor(point, point_size=10, color=GREEN)
+        ren.AddActor(actor)
+
+    ren.ResetCamera()
+    print(ren.GetLights())
+    # show render window
+    iren.Initialize()
+    iren.Start()
+
+if __name__ == "__main__":
+    main()
 
 

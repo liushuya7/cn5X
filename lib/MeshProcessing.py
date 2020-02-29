@@ -155,7 +155,7 @@ class MeshProcessing(object):
         normal = normal / nn
         return (c, normal)
 
-def createPointActor(point_coordinate, color):
+def createPointActor(point_coordinate, color, point_size=POINT_SIZE):
     # Create the geometry of a point (the coordinate)
     points = vtk.vtkPoints()
     # Create the topology of the point (a vertex)
@@ -180,11 +180,11 @@ def createPointActor(point_coordinate, color):
     actor = vtk.vtkActor()
     actor.SetMapper(mapper)
     actor.GetProperty().SetColor(color)
-    actor.GetProperty().SetPointSize(POINT_SIZE)
+    actor.GetProperty().SetPointSize(point_size)
 
     return actor
 
-def createPlaneActor(centroid, normal, get_origin = False):
+def createPlaneActor(centroid, normal, offset=100, size=200, get_origin = False):
 
     source = vtk.vtkPlaneSource()
     source.SetCenter(centroid)
@@ -196,14 +196,14 @@ def createPlaneActor(centroid, normal, get_origin = False):
     vec1 = np.array(list(point1)) - origin 
     point2 = source.GetPoint2()
     vec2 = np.array(list(point2)) - origin 
-    origin = origin - vec_origin_to_center * 200
-    point1 = origin + 200 * vec1
-    point2 = origin + 200 * vec2
+    origin = origin - vec_origin_to_center * size
+    point1 = origin + size * vec1
+    point2 = origin + size * vec2
     source.SetOrigin(origin)
     source.SetPoint1(point1)
     source.SetPoint2(point2)
     # move plane away along normal direction
-    source.Push(100)
+    source.Push(offset)
     origin = source.GetOrigin()
     # add plane
     mapper = vtk.vtkPolyDataMapper()
@@ -217,14 +217,13 @@ def createPlaneActor(centroid, normal, get_origin = False):
         return actor
 
 
-def createLineActor(p0, p1):
+def createLineActor(p0, p1, color=(0,255,0)):
     # Create a vtkPoints object and store the points in it
     pts = vtk.vtkPoints()
     pts.InsertNextPoint(p0)
     pts.InsertNextPoint(p1)
 
     # Setup two colors - one for each line
-    green = [0, 255, 0]
 
     # Setup the colors array
     colors = vtk.vtkUnsignedCharArray()
@@ -232,7 +231,7 @@ def createLineActor(p0, p1):
     colors.SetName("Colors")
 
     # Add the colors we created to the colors array
-    colors.InsertNextTypedTuple(green)
+    colors.InsertNextTypedTuple(color)
 
     # Create the first line (between Origin and P0)
     line = vtk.vtkLine()
