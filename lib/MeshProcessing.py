@@ -271,7 +271,7 @@ def createLineActor(p0, p1, color=(0,255,0)):
 
 def main():
     RED = (255,0,0)
-    file_name = '../mesh/implant_registration_pts.stl'
+    file_name = '../mesh/implant.stl'
     mesh_processor = MeshProcessing(file_name)
 
     ## VTK 
@@ -296,42 +296,42 @@ def main():
     iren.SetRenderWindow(renWin)
     ren.AddActor(actor)
 
-    # visualize projection plane
-    potential_vertices = MeshProcessing.extractPointsByCurvature(mesh_processor.mesh, threshold=0.01, radius=0.01) 
-    c, normal = MeshProcessing.fitPlaneLTSQ(potential_vertices)
-    centroid = mesh_processor.mesh.centroid
-    plane_actor, origin = createPlaneActor(centroid, normal, get_origin=True)
-    ren.AddActor(plane_actor)
+    # # visualize projection plane
+    # potential_vertices = MeshProcessing.extractPointsByCurvature(mesh_processor.mesh, threshold=0.01, radius=0.01) 
+    # c, normal = MeshProcessing.fitPlaneLTSQ(potential_vertices)
+    # centroid = mesh_processor.mesh.centroid
+    # plane_actor, origin = createPlaneActor(centroid, normal, get_origin=True)
+    # ren.AddActor(plane_actor)
 
-    # vtk plane for projection
-    # origin = plane_actor.GetOrigin()
-    plane = vtk.vtkPlane()
-    plane.SetOrigin(origin) # use centroid if without above block
-    plane.SetNormal(normal)
-    # plane.Push(100)# translate plane along normal direction by distance 100
-    # origin = plane.GetOrigin()
-    projected_points = []
-    for i, point in enumerate(potential_vertices):
-        projected_point = np.zeros(3)
-        plane.ProjectPoint(point, origin, normal, projected_point)
-        projected_points.append(projected_point)
-        actor = createPointActor(projected_point, color=RED)
-        ren.AddActor(actor)
+    # # vtk plane for projection
+    # # origin = plane_actor.GetOrigin()
+    # plane = vtk.vtkPlane()
+    # plane.SetOrigin(origin) # use centroid if without above block
+    # plane.SetNormal(normal)
+    # # plane.Push(100)# translate plane along normal direction by distance 100
+    # # origin = plane.GetOrigin()
+    # projected_points = []
+    # for i, point in enumerate(potential_vertices):
+    #     projected_point = np.zeros(3)
+    #     plane.ProjectPoint(point, origin, normal, projected_point)
+    #     projected_points.append(projected_point)
+    #     actor = createPointActor(projected_point, color=RED)
+    #     ren.AddActor(actor)
 
-    # non-vectorization implementation of ray casting
-    desired_points = []
-    for i, projected_point in enumerate(projected_points):
-        locations, index_ray, index_tri = mesh_processor.mesh.ray.intersects_location(projected_point.reshape((1,3)), -normal.reshape((1,3)), multiple_hits=False)
-        if len(locations) > 0 and np.linalg.norm(potential_vertices[i] - locations[0]) > 0.1:
-            desired_points.append(potential_vertices[i].tolist())
-            actor = createLineActor(projected_point, desired_points[-1])
-            ren.AddActor(actor)
+    # # non-vectorization implementation of ray casting
+    # desired_points = []
+    # for i, projected_point in enumerate(projected_points):
+    #     locations, index_ray, index_tri = mesh_processor.mesh.ray.intersects_location(projected_point.reshape((1,3)), -normal.reshape((1,3)), multiple_hits=False)
+    #     if len(locations) > 0 and np.linalg.norm(potential_vertices[i] - locations[0]) > 0.1:
+    #         desired_points.append(potential_vertices[i].tolist())
+    #         actor = createLineActor(projected_point, desired_points[-1])
+    #         ren.AddActor(actor)
 
-    feature_points = mesh_processor.extractFeaturePoints()
-    # render feature points in viewer
-    for point in feature_points:
-        actor = createPointActor(point, color=RED)
-        ren.AddActor(actor)
+    # feature_points = mesh_processor.extractFeaturePoints()
+    # # render feature points in viewer
+    # for point in feature_points:
+    #     actor = createPointActor(point, color=RED)
+    #     ren.AddActor(actor)
 
     ren.ResetCamera()
     # show render window

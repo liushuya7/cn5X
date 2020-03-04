@@ -305,6 +305,11 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     self.ui.pushButton_save_path.clicked.connect(self.saveCutPath)
     self.ui.pushButton_delete_all.clicked.connect(self.deleteAll)
 
+    # VTK Viewer Mode
+
+    self.ui.action_camera_mode.triggered.connect(self.swtichInteractorStyleToCameraMode)
+    self.ui.action_actor_mode.triggered.connect(self.swtichInteractorStyleToActorMode)
+
     # Registration
     self.registration_dialog = None
 
@@ -1313,6 +1318,15 @@ class GrblMainwindow(QtWidgets.QMainWindow):
 
   def deleteAll(self):
     self.vtk_viewer.deleteAllPoints()
+
+# VTK Viewer Mode
+  def swtichInteractorStyleToCameraMode(self):
+
+    self.vtk_viewer.setInteractorStyle(style='camera')
+
+  def swtichInteractorStyleToActorMode(self):
+  
+    self.vtk_viewer.setInteractorStyle(style='actor')
 
   def toggleTfPub(self, state):
     self.grbl_tf_pub = state

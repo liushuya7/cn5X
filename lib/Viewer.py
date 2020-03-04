@@ -275,5 +275,11 @@ class Viewer(QFrame):
     def update(self):
         self.renderer.GetRenderWindow().Render()
 
-
+    def setInteractorStyle(self, style):
+        if style == 'camera':
+            interactor_style = vtk.vtkInteractorStyleTrackballCamera()
+        elif style == 'actor':
+            interactor_style = vtk.vtkInteractorStyleTrackballActor()
+        
+        self.interactor.SetInteractorStyle(interactor_style)
 

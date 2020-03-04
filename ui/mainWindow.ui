@@ -4633,10 +4633,18 @@ background-image: url(:/cn5X/images/laser_test.png);</string>
     <addaction name="actionCamera"/>
     <addaction name="actionHandeye"/>
    </widget>
+   <widget class="QMenu" name="menuVTK_Interactor">
+    <property name="title">
+     <string>VTK Interactor</string>
+    </property>
+    <addaction name="action_camera_mode"/>
+    <addaction name="action_actor_mode"/>
+   </widget>
    <addaction name="mnuApplication"/>
    <addaction name="menuMachine"/>
    <addaction name="menuFunction"/>
    <addaction name="menuAide"/>
+   <addaction name="menuVTK_Interactor"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
   <action name="mnuAppOpenGcode">
@@ -4728,6 +4736,16 @@ background-image: url(:/cn5X/images/laser_test.png);</string>
   <action name="actionHandeye">
    <property name="text">
     <string>Handeye Calibration</string>
+   </property>
+  </action>
+  <action name="action_camera_mode">
+   <property name="text">
+    <string>Camera Mode</string>
+   </property>
+  </action>
+  <action name="action_actor_mode">
+   <property name="text">
+    <string>Actor Mode</string>
    </property>
   </action>
  </widget>
