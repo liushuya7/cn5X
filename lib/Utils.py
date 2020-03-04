@@ -13,6 +13,9 @@ class VTKUtils(object):
         # load stl model
         reader = vtk.vtkSTLReader()
         reader.SetFileName(file_name)
+        reader.Update()
+        # vtk_polydata = reader.GetOutput()
+
         # mapper 
         mapper = vtk.vtkPolyDataMapper()
         if vtk.VTK_MAJOR_VERSION <= 5:
@@ -21,8 +24,9 @@ class VTKUtils(object):
             mapper.SetInputConnection(reader.GetOutputPort())
         actor = vtk.vtkActor()
         actor.SetMapper(mapper)
+        # print(actor.GetMapper().GetInput())
 
-        return actor
+        return actor 
 
     @staticmethod
     def createPointActor(point_coordinate, color, point_size=POINT_SIZE):

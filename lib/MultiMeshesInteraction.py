@@ -16,6 +16,10 @@ class MultiMeshesInteraction(object):
         for name, path in file_name_dic.items():
             self.meshes[name] = trimesh.load(path)
             # print(self.meshes[name].bounds)
+
+    def takeIntersection(self):
+        
+
     
     
 def main():
@@ -36,7 +40,7 @@ def main():
     for name, path in mesh_dict.items():
         actor = VTKUtils.loadSTL(path)
         actors[name] = actor
-        ren.AddActor(actor)
+        # ren.AddActor(actor)
     
     # transform template to align its centroid to the centroid of implant,
     # fit plane to both meshes,
@@ -52,15 +56,23 @@ def main():
     transform = vtk.vtkTransform()
     transform.RotateWXYZ(angle, -axis)
     transform.Translate(translation)
-    VTKUtils.transformActor(actors['template'], transform)
+    transform_filter = vtk.vtkTransformPolyDataFilter()
+    transform_filter.SetInputData(actors['template'].GetMapper().GetInput())
+    transform_filter.SetTransform(transform)
+    transform_filter.Update()
+    # print(actors['template'].GetMapper().GetInput())
+
+    # VTKUtils.transformActor(actors['template'], transform)
+    # print(actors['implant'].GetMapper().GetInput())
 
     # boolean operation
     booleanOperation = vtk.vtkBooleanOperationPolyDataFilter()
-    # booleanOperation.SetOperationToIntersection()
-    booleanOperation.SetOperationToDifference()
+    booleanOperation.SetOperationToIntersection()
+    # booleanOperation.SetOperationToDifference()
 
-    booleanOperation.SetInputConnection(0, actors['implant'].GetInput())
-    booleanOperation.SetInputConnection(1, sphere2Tri.GetOutputPort())
+    booleanOperation.SetInputData(0, actors['implant'].GetMapper().GetInput())
+    booleanOperation.SetInputData(1, transform_filter.GetOutput())
+    # booleanOperation.SetInputConnection(1, transform_filter.GetOutputPort())
     booleanOperation.Update()
 
     booleanOperationMapper = vtk.vtkPolyDataMapper()
@@ -69,10 +81,8 @@ def main():
 
     booleanOperationActor = vtk.vtkActor()
     booleanOperationActor.SetMapper(booleanOperationMapper)
-    booleanOperationActor.GetProperty().SetDiffuseColor(colors.GetColor3d("Banana"))
-
-    
-
+    # booleanOperationActor.GetProperty().SetDiffuseColor(colors.GetColor3d("Banana"))
+    ren.AddActor(booleanOperationActor)
 
     ren.ResetCamera()
     # ren.GetRenderWindow().Render()
