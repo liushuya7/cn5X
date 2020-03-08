@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>PathGenerationDialog</class>
+ <widget class="QDialog" name="PathGenerationDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>351</width>
+    <height>610</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>RegistrationDialog</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout_2">
+   <item>
+    <widget class="QGroupBox" name="groupBox_pocket_milling_path">
+     <property name="title">
+      <string>Pocket Milling</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout">
+      <item>
+       <widget class="QLabel" name="label_status">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkBox_show_normal">
+        <property name="text">
+         <string>show normal</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QVBoxLayout" name="verticalLayout_3">
+        <item>
+         <widget class="QLabel" name="label">
+          <property name="text">
+           <string>Mesh Operation</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <item>
+           <widget class="QLabel" name="label_5">
+            <property name="text">
+             <string>Source Mesh</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="lineEdit_source"/>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_4">
+          <item>
+           <widget class="QLabel" name="label_6">
+            <property name="text">
+             <string>Target Mesh</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="lineEdit_target"/>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QPushButton" name="pushButton_transform">
+          <property name="text">
+           <string>Transform</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_5">
+          <item>
+           <widget class="QComboBox" name="comboBox_boolean_operation"/>
+          </item>
+          <item>
+           <widget class="QPushButton" name="pushButton_boolean_operation">
+            <property name="text">
+             <string>Boolean Operation</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QVBoxLayout" name="verticalLayout_4">
+        <item>
+         <widget class="QLabel" name="label_2">
+          <property name="text">
+           <string>Path Generation</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout">
+          <item>
+           <widget class="QLabel" name="label_3">
+            <property name="text">
+             <string>Distance between layers:</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QDoubleSpinBox" name="doubleSpinBox"/>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_2">
+          <item>
+           <widget class="QLabel" name="label_4">
+            <property name="text">
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Line distance:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QDoubleSpinBox" name="doubleSpinBox_2"/>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QPushButton" name="pushButton_generate_path">
+          <property name="text">
+           <string>Generate Path</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="groupBox_contour_cutting_path">
+     <property name="title">
+      <string>Contour Cutting</string>
+     </property>
+     <layout class="QVBoxLayout" name="vertical_defect_path">
+      <property name="leftMargin">
+       <number>9</number>
+      </property>
+      <property name="topMargin">
+       <number>9</number>
+      </property>
+      <property name="rightMargin">
+       <number>9</number>
+      </property>
+      <property name="bottomMargin">
+       <number>9</number>
+      </property>
+      <item>
+       <widget class="QPushButton" name="pushButton_delete_point">
+        <property name="text">
+         <string>delete point</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButton_show_axis">
+        <property name="text">
+         <string>show axis</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="label_7">
+        <property name="text">
+         <string>Cut Angle (degree)</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QDoubleSpinBox" name="doubleSpinBox_angle">
+        <property name="maximum">
+         <double>180.000000000000000</double>
+        </property>
+        <property name="value">
+         <double>30.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButton_cut_vector">
+        <property name="text">
+         <string>cut vector</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButton_save_path">
+        <property name="text">
+         <string>save cut path</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButton_delete_all">
+        <property name="text">
+         <string>delete all</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

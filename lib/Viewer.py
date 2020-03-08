@@ -1,8 +1,12 @@
 import os
-from PyQt5.QtWidgets import QFrame, QHBoxLayout, QTableWidgetItem
+from PyQt5.QtWidgets import QFrame, QHBoxLayout, QTableWidgetItem, QMenu, QAction
+from PyQt5.QtCore import Qt
 import vtk
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 import numpy as np
+
+from Utils import VTKUtils
+from TwoMeshesInteraction import TwoMeshesInteraction
 
 MAGNIFY_RATIO = 3
 POINT_SIZE = 5
@@ -15,7 +19,7 @@ class Viewer(QFrame):
         super(Viewer,self).__init__(parent)
         self.Qmaster = Qmaster
 
-        # Make the actual QtWidget a child so that it np.cos(theta)n be re parented
+        # Make the actual QtWidget a child so that it can be re parented
         interactor = QVTKRenderWindowInteractor(self)
         self.layout = QHBoxLayout()
         self.layout.addWidget(interactor)
@@ -35,8 +39,13 @@ class Viewer(QFrame):
         self.interactor = interactor
         self.render_window = render_window
 
+        # set up for context menu
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.onContextMenu)
+        self.actor_menu = ActorMenu(self)
+
         # mesh file
-        self.current_mesh_file = None
+        self.mesh_actors = {}
 
         # Set up picker (ray-casting)
         self.picker_tag_id = None
@@ -46,29 +55,25 @@ class Viewer(QFrame):
         self.interactor.SetPicker(self.picker)
 
         # Path Generation
-        self.to_show_axis = False
-        self.axis_vector = None
-        self.machine_center = None
+        self.to_show_normal = False
+        self.normal_vector = None
+        self.picked_point = None
         self.cut_path = None
+
+        # Multi-mesh interaction
+        self.two_mesh_interaction = None
 
     def start(self):
         self.interactor.Initialize()
         self.interactor.Start()
 
     def loadModel(self, file_name):
-        self.current_mesh_file = file_name
-        # Load mesh file
-        reader = vtk.vtkSTLReader()
-        reader.SetFileName(file_name)
-        # mapper 
-        mapper = vtk.vtkPolyDataMapper()
-        if vtk.VTK_MAJOR_VERSION <= 5:
-            mapper.SetInput(reader.GetOutput())
-        else:
-            mapper.SetInputConnection(reader.GetOutputPort())
-        actor = vtk.vtkActor()
-        actor.SetMapper(mapper)
+        mesh_name = os.path.split(file_name)[-1]
 
+        # Load mesh file
+        actor = VTKUtils.loadSTL(file_name)
+
+        self.mesh_actors[mesh_name] = actor
         self.renderer.AddActor(actor)
         self.renderer.ResetCamera()
 
@@ -76,13 +81,13 @@ class Viewer(QFrame):
         point_id = object.GetPointId()
         if point_id >= 0:
             picked_point = object.GetPickPosition()#GetSelectionPoint()
-            if self.to_show_axis:
+            if self.to_show_normal:
                 picked_normal = object.GetPickNormal()
                 self.showAxis(picked_point, picked_normal)
-                self.axis_vector = picked_normal
-                self.machine_center = picked_point
+                self.normal_vector = picked_normal
+                self.picked_point = picked_point
             # add a point
-            actor = self.createPointActor(picked_point, color=RED)
+            actor = VTKUtils.createPointActor(picked_point, color=RED)
             self.addActor(actor)
             self.points.append(actor)
 
@@ -92,8 +97,6 @@ class Viewer(QFrame):
             if self.Qmaster.registration_dialog and self.Qmaster.registration_dialog.is_loaded:
                 # add picked points to table in RegistrationDialog
                 self.addPointToTable(picked_point)
-            else:
-                print("registration not loaded")
 
         else:
             print("not picking anything!")
@@ -167,10 +170,10 @@ class Viewer(QFrame):
         for point in self.points:
             bounds = point.GetBounds()
             pt = (bounds[0], bounds[2], bounds[4])
-            t = self.solveCuttingVector(pt, self.machine_center, self.axis_vector, theta)
+            t = self.solveCuttingVector(pt, self.picked_point, self.normal_vector, theta)
             if t:
                 p = np.array(pt)
-                q = np.array(self.machine_center) + t*np.array((self.axis_vector))
+                q = np.array(self.picked_point) + t*np.array((self.normal_vector))
                 vector = (q-p)/np.linalg.norm(q-p)
                 self.showAxis(pt, (vector[0], vector[1], vector[2]))
                 path = list(pt)
@@ -178,99 +181,35 @@ class Viewer(QFrame):
                 self.cut_path.append(path)
 
     def showAxis(self, point, vector):
-        # Create three points. Join (Origin and P0) with a red line and
         scale = 10
         p0 = np.array(point) + np.array(vector) * scale
         p1 = np.array(point) - np.array(vector) * scale
 
-        # Create a vtkPoints object and store the points in it
-        pts = vtk.vtkPoints()
-        pts.InsertNextPoint(p0)
-        pts.InsertNextPoint(p1)
-
-        # Setup two colors - one for each line
-        green = [0, 255, 0]
-
-        # Setup the colors array
-        colors = vtk.vtkUnsignedCharArray()
-        colors.SetNumberOfComponents(3)
-        colors.SetName("Colors")
-
-        # Add the colors we created to the colors array
-        colors.InsertNextTypedTuple(green)
-
-        # Create the first line (between Origin and P0)
-        line = vtk.vtkLine()
-        line.GetPointIds().SetId(0,0) # the second 0 is the index of the Origin in the vtkPoints
-        line.GetPointIds().SetId(1,1) # the second 1 is the index of P0 in the vtkPoints
-
-        # Create a cell array to store the lines in and add the lines to it
-        lines = vtk.vtkCellArray()
-        lines.InsertNextCell(line)
-
-        # Create a polydata to store everything in
-        linesPolyData = vtk.vtkPolyData()
-
-        # Add the points to the dataset
-        linesPolyData.SetPoints(pts)
-
-        # Add the lines to the dataset
-        linesPolyData.SetLines(lines)
-
-        # Color the lines - associate the first component (red) of the
-        # colors array with the first component of the cell array (line 0)
-        # and the second component (green) of the colors array with the
-        # second component of the cell array (line 1)
-        linesPolyData.GetCellData().SetScalars(colors)
-
-        # Visualize
-        mapper = vtk.vtkPolyDataMapper()
-        if vtk.VTK_MAJOR_VERSION <= 5:
-            mapper.SetInput(linesPolyData)
-        else:
-            mapper.SetInputData(linesPolyData)
-
-        actor = vtk.vtkActor()
-        actor.SetMapper(mapper)
-
-        self.renderer.AddActor(actor)
-        self.update()
+        actor = VTKUtils.createLineActor(p0, p1)
+        self.addActor(actor)
 
     def getCutPath(self):
         return self.cut_path
 
     def addActor(self, actor):
-        self.points.append(actor)
         self.renderer.AddActor(actor)
         self.update()
 
-    def createPointActor(self, point_coordinate, color):
-        # Create the geometry of a point (the coordinate)
-        points = vtk.vtkPoints()
-        # Create the topology of the point (a vertex)
-        vertices = vtk.vtkCellArray()
-        id = points.InsertNextPoint(point_coordinate)
-        vertices.InsertNextCell(1)
-        vertices.InsertCellPoint(id)
-        # Create a polydata object
-        point = vtk.vtkPolyData()
-        # Set the points and vertices we created as the geometry and topology of the polydata
-        point.SetPoints(points)
-        point.SetVerts(vertices)
+    def transformSource(self, source_name, target_name):
 
-        # Create a mapper
-        # Visualize
-        mapper = vtk.vtkPolyDataMapper()
-        if vtk.VTK_MAJOR_VERSION <= 5:
-            mapper.SetInput(point)
+        if self.picked_point:
+            self.two_mesh_interaction = TwoMeshesInteraction(self.mesh_actors[source_name], self.mesh_actors[target_name])
+            self.two_mesh_interaction.transformSource(self.picked_point)
+            self.update()
         else:
-            mapper.SetInputData(point)
+            print("No target point clicked yet.")
+
+    def boolean_operation(self, source_name, target_name, operation='intersection'):
+        if not self.two_mesh_interaction:
+            self.two_mesh_interaction = TwoMeshesInteraction(self.mesh_actors[source_name], self.mesh_actors[target_name])
         
-        actor = vtk.vtkActor()
-        actor.SetMapper(mapper)
-        actor.GetProperty().SetColor(color)
-        actor.GetProperty().SetPointSize(POINT_SIZE)
-        return actor
+        actor = self.two_mesh_interaction.createBooleanOperationActor()
+        self.renderer.AddActor(actor)
 
     def update(self):
         self.renderer.GetRenderWindow().Render()
@@ -279,7 +218,74 @@ class Viewer(QFrame):
         if style == 'camera':
             interactor_style = vtk.vtkInteractorStyleTrackballCamera()
         elif style == 'actor':
-            interactor_style = vtk.vtkInteractorStyleTrackballActor()
+            interactor_style = ActorInteractor(self)
         
         self.interactor.SetInteractorStyle(interactor_style)
 
+    def addPathGenerationDialog(self, path_generation_dialog):
+        self.path_generation_dialog = path_generation_dialog
+        self.to_show_normal = self.path_generation_dialog.checkBox_show_normal.isChecked()
+
+
+    def onContextMenu(self, point):
+        self.actor_menu.exec_(self.mapToGlobal(point))
+        # self.popMenu.exec_(self.parent.mapToGlobal(point))
+
+
+class ActorInteractor(vtk.vtkInteractorStyleTrackballActor):
+    def __init__(self, parent):
+        super().__init__()
+        self.AddObserver("RightButtonPressEvent",self.rightButtonPressEvent)
+        self.picked_actor = None
+        self.parent = parent
+
+    def rightButtonPressEvent(self, obj, event):
+        clickPos = self.GetInteractor().GetEventPosition()
+        picker = vtk.vtkPropPicker()
+        picker.Pick(clickPos[0], clickPos[1], 0, self.parent.renderer)
+        
+        # get actor 
+        self.picked_actor = picker.GetActor()
+
+        # self.OnLeftButtonDown()
+        return
+
+class ActorMenu(QMenu):
+    def __init__(self, parent):
+        super().__init__()
+        self.parent = parent
+        action_target = QAction("Target", self)
+        action_source = QAction("Source", self)
+        action_target.triggered.connect(self.setTarget)
+        action_source.triggered.connect(self.setSource)
+        self.addAction(action_target)
+        self.addAction(action_source)
+    
+    def setTarget(self):
+        if isinstance(self.parent.interactor.GetInteractorStyle(), ActorInteractor):
+            if self.parent.interactor.GetInteractorStyle().picked_actor:
+                picked_actor = self.parent.interactor.GetInteractorStyle().picked_actor
+                for name, mesh_actor in self.parent.mesh_actors.items():
+                    if picked_actor is mesh_actor:
+                        self.parent.path_generation_dialog.putTargetName(name)
+            else:
+                text_info = "Please select on an actor."
+                self.parent.path_generation_dialog.label_status.setText(text_info)
+
+        else:
+            text_info = "Select source and target in wrong mode. \n Check VTK mode to be actor."
+            self.parent.path_generation_dialog.label_status.setText(text_info)
+
+    def setSource(self):
+        if isinstance(self.parent.interactor.GetInteractorStyle(), ActorInteractor):
+            if self.parent.interactor.GetInteractorStyle().picked_actor:
+                picked_actor = self.parent.interactor.GetInteractorStyle().picked_actor
+                for name, mesh_actor in self.parent.mesh_actors.items():
+                    if picked_actor is mesh_actor:
+                        self.parent.path_generation_dialog.putSourceName(name)
+            else:
+                text_info = "Please select on an actor."
+                self.parent.path_generation_dialog.label_status.setText(text_info)
+        else:
+            text_info = "Select source and target in wrong mode. \n Check VTK mode to be actor."
+            self.parent.path_generation_dialog.label_status.setText(text_info)

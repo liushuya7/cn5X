@@ -3,7 +3,8 @@ import os
 import vtk
 import numpy as np
 import csv
-from MeshProcessing import MeshProcessing, createPointActor, createLineActor, createPlaneActor
+from MeshProcessing import MeshProcessing
+from Utils import VTKUtils
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial import distance_matrix
 from scipy.spatial.transform import Rotation as R
@@ -425,7 +426,7 @@ def main():
     # render feature points in viewer
     target_numpy = mesh_processor.extractFeaturePoints()
     for point in target_numpy:
-        actor = createPointActor(point,point_size=10, color=RED)
+        actor = VTKUtils.createPointActor(point,point_size=10, color=RED)
         ren.AddActor(actor)
 
     # load world points
@@ -438,7 +439,7 @@ def main():
             source_numpy.append(row)
     source_numpy = np.array(source_numpy)
     # for point in source_numpy:
-    #     actor = createPointActor(point, color=GREEN)
+    #     actor = VTKUTils.createPointActor(point, color=GREEN)
     #     ren.AddActor(actor)
 
     # registration
@@ -449,7 +450,7 @@ def main():
     c_target, normal_target = MeshProcessing.fitPlaneLTSQ(registration.target_numpy)
     centroid_target = mesh_processor.mesh.centroid
     normal_end_target = centroid_target - normal_target*50
-    # actor = createLineActor(centroid_target, normal_end_target, color=BLUE)
+    # actor = VTKUtils.createLineActor(centroid_target, normal_end_target, color=BLUE)
     # ren.AddActor(actor)
 
     # iterate over target_numpy to find best match of pivot point
@@ -467,7 +468,7 @@ def main():
         # # visualization for source_centroided_numpy
         # for point in source_pivot_centroided_numpy:
         #     point = point[:3]
-        #     actor = createPointActor(point, color=GREEN)
+        #     actor = VTKUtils.createPointActor(point, color=GREEN)
         #     ren.AddActor(actor)
 
 
@@ -480,9 +481,9 @@ def main():
         # centroid_source = np.mean(source_pivot_centroided_numpy, axis=0)[:3]
         # print(centroid_source)
         # normal_source_target = centroid_source + normal_source*50
-        # actor = createLineActor(centroid_source, normal_source_target, color=BLUE)
+        # actor = VTKUtils.createLineActor(centroid_source, normal_source_target, color=BLUE)
         # ren.AddActor(actor)
-        # actor = createPlaneActor(centroid_source, normal_source, offset=0, size=100)
+        # actor = VTKUtils.createPlaneActor(centroid_source, normal_source, offset=0, size=100)
         # ren.AddActor(actor)
 
 
@@ -494,15 +495,15 @@ def main():
         # # visualization for source_normaled_numpy
         # for point in source_normaled_numpy:
         #     point = point[:3]
-        #     actor = createPointActor(point, color=GREEN)
+        #     actor = VTKUtils.createPointActor(point, color=GREEN)
         #     ren.AddActor(actor)
         # c_source, normal_source = MeshProcessing.fitPlaneLTSQ(source_normaled_numpy)
         # centroid_source = np.mean(source_normaled_numpy, axis=0)[:3]
         # print(centroid_source)
         # normal_source_target = centroid_source - normal_source*50
-        # actor = createLineActor(centroid_source, normal_source_target, color=BLUE)
+        # actor = VTKUtils.createLineActor(centroid_source, normal_source_target, color=BLUE)
         # ren.AddActor(actor)
-        # actor = createPlaneActor(centroid_source, normal_source, offset=0, size=100)
+        # actor = VTKUtils.createPlaneActor(centroid_source, normal_source, offset=0, size=100)
         # ren.AddActor(actor)
             
             
@@ -559,7 +560,7 @@ def main():
     for point in points.T:
         point = point[:3]
         transformed_points.append(point.tolist())
-        actor = createPointActor(point, point_size=10, color=GREEN)
+        actor = VTKUtils.createPointActor(point, point_size=10, color=GREEN)
         ren.AddActor(actor)
 
     ren.ResetCamera()

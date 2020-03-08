@@ -1,4 +1,5 @@
 import vtk
+from vtk.util import numpy_support
 import trimesh
 import numpy as np
 
@@ -27,6 +28,16 @@ class VTKUtils(object):
         # print(actor.GetMapper().GetInput())
 
         return actor 
+
+    @staticmethod
+    def getCenterOfActor(actor):
+
+        center_filter = vtk.vtkCenterOfMass()
+        center_filter.SetInputData(actor.GetMapper().GetInput())
+        center_filter.Update()
+        center = center_filter.GetCenter()
+
+        return center
 
     @staticmethod
     def createPointActor(point_coordinate, color, point_size=POINT_SIZE):
@@ -149,6 +160,43 @@ class VTKUtils(object):
     def transformActor(actor, vtk_transform):
 
         actor.SetUserTransform(vtk_transform)
+
+    @staticmethod
+    def transformData(polydata, vtk_transform):
+
+        transform_filter = vtk.vtkTransformPolyDataFilter()
+        transform_filter.SetInputData(polydata)
+        transform_filter.SetTransform(vtk_transform)
+        transform_filter.Update()
+
+        return transform_filter 
+
+    @staticmethod
+    def vtkPointsToNumpyArray(vtk_points):
+        np_points = numpy_support.vtk_to_numpy(vtk_points.GetData())
+        return np_points
+
+
+def fitPlaneLTSQ(XYZ):
+    """ Function to fit a plane to a set of 3D points.
+
+    Args:
+        XYZ: Array of (n,3) 3D points.
+
+    Returns:
+        plane with c and normal.
+
+    """
+    (rows, cols) = XYZ.shape
+    G = np.ones((rows, 3))
+    G[:, 0] = XYZ[:, 0]  #X
+    G[:, 1] = XYZ[:, 1]  #Y
+    Z = XYZ[:, 2]
+    (a, b, c),resid,rank,s = np.linalg.lstsq(G, Z, rcond=None)
+    normal = (a, b, -1)
+    nn = np.linalg.norm(normal)
+    normal = normal / nn
+    return (c, normal)
 
 def main():
     pass

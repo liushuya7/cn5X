@@ -625,73 +625,30 @@
           </spacer>
          </item>
          <item>
-          <layout class="QVBoxLayout" name="verticalLayout_16">
-           <item>
-            <widget class="QPushButton" name="pushButton_delete_point">
-             <property name="text">
-              <string>delete point</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="pushButton_show_axis">
-             <property name="text">
-              <string>show axis</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLabel" name="label_5">
-             <property name="text">
-              <string>Cut Angle (degree)</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QDoubleSpinBox" name="doubleSpinBox_angle">
-             <property name="maximum">
-              <double>180.000000000000000</double>
-             </property>
-             <property name="value">
-              <double>30.000000000000000</double>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="pushButton_cut_vector">
-             <property name="text">
-              <string>cut vector</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="pushButton_save_path">
-             <property name="text">
-              <string>save cut path</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="pushButton_delete_all">
-             <property name="text">
-              <string>delete all</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <spacer name="verticalSpacer">
-             <property name="orientation">
-              <enum>Qt::Vertical</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>20</width>
-               <height>40</height>
-              </size>
-             </property>
-            </spacer>
-           </item>
-          </layout>
+          <widget class="QGroupBox" name="groupBox_vtk_mode">
+           <property name="title">
+            <string>VTK mode</string>
+           </property>
+           <layout class="QVBoxLayout" name="verticalLayout_16">
+            <item>
+             <widget class="QRadioButton" name="radioButton_camera">
+              <property name="text">
+               <string>camera</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QRadioButton" name="radioButton_actor">
+              <property name="text">
+               <string>actor</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
          </item>
         </layout>
        </item>
@@ -4632,19 +4589,12 @@ background-image: url(:/cn5X/images/laser_test.png);</string>
     <addaction name="actionRegistration"/>
     <addaction name="actionCamera"/>
     <addaction name="actionHandeye"/>
-   </widget>
-   <widget class="QMenu" name="menuVTK_Interactor">
-    <property name="title">
-     <string>VTK Interactor</string>
-    </property>
-    <addaction name="action_camera_mode"/>
-    <addaction name="action_actor_mode"/>
+    <addaction name="actionPathGeneration"/>
    </widget>
    <addaction name="mnuApplication"/>
    <addaction name="menuMachine"/>
    <addaction name="menuFunction"/>
    <addaction name="menuAide"/>
-   <addaction name="menuVTK_Interactor"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
   <action name="mnuAppOpenGcode">
@@ -4746,6 +4696,16 @@ background-image: url(:/cn5X/images/laser_test.png);</string>
   <action name="action_actor_mode">
    <property name="text">
     <string>Actor Mode</string>
+   </property>
+  </action>
+  <action name="actionPathGeneration">
+   <property name="text">
+    <string>Path Generation</string>
+   </property>
+  </action>
+  <action name="action_add_path_generation_dialog">
+   <property name="text">
+    <string>Add Path Generation Dialog</string>
    </property>
   </action>
  </widget>

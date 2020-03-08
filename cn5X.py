@@ -46,6 +46,7 @@ from grblConfig import grblConfig
 from RegistrationDialog import RegistrationDialog
 from CameraDialog import CameraDialog
 from HandEyeCalibrationDialog import HandEyeCalibrationDialog
+from PathGenerationDialog import PathGenerationDialog
 from cn5Xabout import cn5XAbout
 from xml.dom.minidom import parse, Node, Element
 
@@ -299,16 +300,13 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     self.ui.pushButton_laser_test.released.connect(lambda: self.__grblCom.gcodePush("S0"))
 
     # Path Generation
-    self.ui.pushButton_delete_point.clicked.connect(self.deletePoint)
-    self.ui.pushButton_show_axis.clicked.connect(self.showAxis)
-    self.ui.pushButton_cut_vector.clicked.connect(self.findCutVector)
-    self.ui.pushButton_save_path.clicked.connect(self.saveCutPath)
-    self.ui.pushButton_delete_all.clicked.connect(self.deleteAll)
+    self.path_generation_dialog = None
+    self.ui.actionPathGeneration.triggered.connect(self.on_mnu_PathGeneration)
 
-    # VTK Viewer Mode
+    # VTK Viewer Action 
 
-    self.ui.action_camera_mode.triggered.connect(self.swtichInteractorStyleToCameraMode)
-    self.ui.action_actor_mode.triggered.connect(self.swtichInteractorStyleToActorMode)
+    self.ui.radioButton_camera.toggled.connect(self.swtichInteractorStyle)
+    self.ui.radioButton_actor.toggled.connect(self.swtichInteractorStyle)
 
     # Registration
     self.registration_dialog = None
@@ -576,9 +574,16 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     ''' HandeyeCalibration dialog'''
     self.handeyecalibration_dialog = HandEyeCalibrationDialog(self.__grblCom, self.ros)
 
+  @pyqtSlot()
   def on_mnu_Camera(self):
     ''' Camera dialog'''
     self.camera_dialog = CameraDialog(self.ros)
+
+  @pyqtSlot()
+  def on_mnu_PathGeneration(self):
+    ''' Path Generation dialog'''
+    self.path_generation_dialog = PathGenerationDialog(viewer = self.vtk_viewer)
+    self.vtk_viewer.addPathGenerationDialog(self.path_generation_dialog)
 
   @pyqtSlot(str)
   def on_sig_config_changed(self, data: str):
@@ -1277,57 +1282,14 @@ class GrblMainwindow(QtWidgets.QMainWindow):
   def updateTestLaserPower(self, slider_value):
     self.ui.doubleSpinBox_laser_test.setValue(slider_value/10.0)
 
-  # Path Generation
-  def deletePoint(self):
-    if len(self.vtk_viewer.points) > 0:
-      self.vtk_viewer.deleteLatestPoint()
-    else:
-      print("No points in the VTK viewer!")
-  
-  def showAxis(self):
-      self.vtk_viewer.to_show_axis = not self.vtk_viewer.to_show_axis
-      if self.vtk_viewer.to_show_axis:
-        print("Showing axis")
-      else:
-        print("Stop showing axis")
-  
-  def findCutVector(self):
-      if self.vtk_viewer.axis_vector:
-        cut_angle = self.doubleSpinBox_angle.value()
-        self.vtk_viewer.findCuttingVectors(cut_angle)
-      else:
-        print("No axis vector!")
-
-  def saveCutPath(self):
-      if self.vtk_viewer.cut_path:
-        file_name = QtWidgets.QFileDialog.getSaveFileName(self, 'Save File', directory=self_dir, filter="CSV files (*.csv);;Text files (*.txt)")
-        if file_name != '':
-            file_name = file_name[0]
-            with open(file_name, 'wt') as stream:
-                writer = csv.writer(stream, lineterminator='\n')
-                # Get path from Viewer
-                cut_path = self.vtk_viewer.getCutPath()
-                # save cut path 
-                for path in cut_path:
-                    writer.writerow(path)
-            print("File saved!")
-        else:
-          print("No file name given!")
-      else:
-        print("No cut path!")
-
-  def deleteAll(self):
-    self.vtk_viewer.deleteAllPoints()
-
 # VTK Viewer Mode
-  def swtichInteractorStyleToCameraMode(self):
+  def swtichInteractorStyle(self):
 
-    self.vtk_viewer.setInteractorStyle(style='camera')
-
-  def swtichInteractorStyleToActorMode(self):
+    if self.ui.radioButton_actor.isChecked():
+      self.vtk_viewer.setInteractorStyle(style='actor')
+    else:
+      self.vtk_viewer.setInteractorStyle(style='camera')
   
-    self.vtk_viewer.setInteractorStyle(style='actor')
-
   def toggleTfPub(self, state):
     self.grbl_tf_pub = state
 """******************************************************************"""
