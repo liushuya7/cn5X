@@ -62,6 +62,7 @@ class Viewer(QFrame):
 
         # Multi-mesh interaction
         self.two_mesh_interaction = None
+        self.extraction_finished = None
 
     def start(self):
         self.interactor.Initialize()
@@ -208,7 +209,9 @@ class Viewer(QFrame):
         if not self.two_mesh_interaction:
             self.two_mesh_interaction = TwoMeshesInteraction(self.mesh_actors[source_name], self.mesh_actors[target_name])
         
+        print("working on boolean operation...")
         actor = self.two_mesh_interaction.createBooleanOperationActor()
+        actor = self.two_mesh_interaction.extractConnectedRegionActor(actor, extract_mode='all')
         self.renderer.AddActor(actor)
 
     def update(self):
@@ -256,10 +259,22 @@ class ActorMenu(QMenu):
         self.parent = parent
         action_target = QAction("Target", self)
         action_source = QAction("Source", self)
+        action_start_extraction = QAction("Start Extraction", self)
+        action_extract_cell = QAction("Extract Cell", self)
+        action_finish_extraction = QAction("Finish Extraction", self)
+        action_delete_cell = QAction("Delete Cell", self)
         action_target.triggered.connect(self.setTarget)
         action_source.triggered.connect(self.setSource)
+        action_start_extraction.triggered.connect(self.startExtraction)
+        action_extract_cell.triggered.connect(self.extractCell)
+        action_finish_extraction.triggered.connect(self.finishExtraction)
+        action_delete_cell.triggered.connect(self.deleteCell)
         self.addAction(action_target)
         self.addAction(action_source)
+        self.addAction(action_start_extraction)
+        self.addAction(action_extract_cell)
+        self.addAction(action_finish_extraction)
+        self.addAction(action_delete_cell)
     
     def setTarget(self):
         if isinstance(self.parent.interactor.GetInteractorStyle(), ActorInteractor):
@@ -289,3 +304,71 @@ class ActorMenu(QMenu):
         else:
             text_info = "Select source and target in wrong mode. \n Check VTK mode to be actor."
             self.parent.path_generation_dialog.label_status.setText(text_info)
+
+    def startExtraction(self):
+        clickPos = self.parent.interactor.GetEventPosition()
+        cell_picker = vtk.vtkCellPicker()
+        cell_picker.Pick(clickPos[0], clickPos[1], 0, self.parent.renderer)
+        cell_id = cell_picker.GetCellId()
+        if cell_id > 0:
+            self.actor_to_be_extracted = cell_picker.GetActor()
+            self.parent.extraction_finished = False
+            self.append_filter = vtk.vtkAppendPolyData()
+            print("Start extraction.")
+        else:
+            print("No actor is selected, extraction is not started yet.")
+
+    def finishExtraction(self):
+        # reset extraction mode
+        self.parent.extraction_finished = None
+        # create extraction actor
+        mapper = self.actor_to_be_extracted.GetMapper()
+        mapper.SetInputConnection(self.append_filter.GetOutputPort())  
+        self.parent.update()
+        print("Finished extraction")
+
+    def extractCell(self):
+        clickPos = self.parent.interactor.GetEventPosition()
+        cell_picker = vtk.vtkCellPicker()
+        cell_picker.Pick(clickPos[0], clickPos[1], 0, self.parent.renderer)
+        cell_id = cell_picker.GetCellId()
+        if self.parent.extraction_finished is None:
+            print("not in extraction mode")
+            return
+        if not self.parent.extraction_finished:
+            cell_id = cell_picker.GetCellId()
+            if cell_id > 0:
+                print(cell_id)
+                actor = cell_picker.GetActor()
+                actor_cc = self.parent.two_mesh_interaction.extractConnectedRegionActor(actor, extract_mode='cell', cell_id=cell_id)
+
+                # append poly data
+                poly_data = actor_cc.GetMapper().GetInput()
+                self.append_filter.AddInputData(poly_data)
+
+            else:
+                print("No cell picked")
+
+    def deleteCell(self):
+        pass
+        # clickPos = self.parent.interactor.GetEventPosition()
+        # cell_picker = vtk.vtkCellPicker()
+        # cell_picker.Pick(clickPos[0], clickPos[1], 0, self.parent.renderer)
+        # cell_id = cell_picker.GetCellId()
+        # if self.parent.extraction_finished is None:
+        #     print("not in extraction mode")
+        #     return
+        # if not self.parent.extraction_finished:
+        #     cell_id = object.GetCellId()
+        #     if cell_id > 0:
+        #         print(cell_id)
+        #         actor = cell_picker.GetActor()
+        #         actor_cc = self.parent.two_mesh_interaction.extractConnectedRegionActor(actor, extract_mode='cell', cell_id=cell_id)
+        #         # # delete cell from actor
+        #         # poly_data = actor.GetMapper().GetInput()
+        #         # poly_data.DeleteCell(cell_id)
+        #         # poly_data.RemoveDeletedCells()
+
+        #         # append poly data
+        #         poly_data = actor_cc.GetMapper().GetInput()
+        #         append_filter.AddInputData(poly_data)

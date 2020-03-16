@@ -68,7 +68,9 @@ class PathGenerationDialog(QDialog):
 	def boolean_operation(self):
 		source_name = self.lineEdit_source.text()
 		target_name = self.lineEdit_target.text()
+		self.__dl.label_status.setText("Working on Boolean operation...")
 		self.viewer.boolean_operation(source_name, target_name)
+		self.__dl.label_status.setText("Finished Boolean operation.")
 
 	def closeWindow(self):
 		pass
