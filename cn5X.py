@@ -31,7 +31,7 @@ sys.path.insert(0, os.path.abspath('lib')) # add lib folder
 from PyQt5 import QtCore, QtGui, QtWidgets, uic
 from PyQt5.QtCore import Qt, QCoreApplication, QObject, QThread, pyqtSignal, pyqtSlot, QModelIndex,  QItemSelectionModel, QFileInfo, QTranslator, QLocale, QSettings
 from PyQt5.QtGui import QKeySequence, QStandardItemModel, QStandardItem, QValidator
-from PyQt5.QtWidgets import QDialog, QAbstractItemView, QHBoxLayout
+from PyQt5.QtWidgets import QDialog, QAbstractItemView, QHBoxLayout, QShortcut
 from PyQt5.QtSerialPort import QSerialPortInfo
 from cn5X_config import *
 from msgbox import *
@@ -304,9 +304,10 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     self.ui.actionPathGeneration.triggered.connect(self.on_mnu_PathGeneration)
 
     # VTK Viewer Action 
-
-    self.ui.radioButton_camera.toggled.connect(self.swtichInteractorStyle)
-    self.ui.radioButton_actor.toggled.connect(self.swtichInteractorStyle)
+    self.ui.radioButton_camera.toggled.connect(self.switchInteractorStyle)
+    self.ui.radioButton_actor.toggled.connect(self.switchInteractorStyle)
+    self.shortcut_switch_radio_btn = QShortcut(QKeySequence("Ctrl+A"), self)
+    self.shortcut_switch_radio_btn.activated.connect(self.switchRadioButton)
 
     # Registration
     self.registration_dialog = None
@@ -1282,18 +1283,16 @@ class GrblMainwindow(QtWidgets.QMainWindow):
   def updateTestLaserPower(self, slider_value):
     self.ui.doubleSpinBox_laser_test.setValue(slider_value/10.0)
 
-# VTK Viewer Mode
-  # def keyPressEvent(self, event):
-  #     if event.key() == Qt.Key_A:
-  #       print("key pressed")
-  #       # self.vtk_viewer.setInteractorStyle(style='actor')
+  def switchRadioButton(self):
+    if self.ui.radioButton_actor.isChecked():
+      self.ui.radioButton_camera.setChecked(True)
+    else:
+      self.ui.radioButton_actor.setChecked(True)
 
-  # def keyReleaseEvent(self, event):
-  #     if event.key() == Qt.Key_A:
-  #       print("key released")
-  #       # self.vtk_viewer.setInteractorStyle(style='camera')
+    self.switchInteractorStyle()
+    self.addSection("Extraction")
 
-  def swtichInteractorStyle(self):
+  def switchInteractorStyle(self):
 
     if self.ui.radioButton_actor.isChecked():
       self.vtk_viewer.setInteractorStyle(style='actor')

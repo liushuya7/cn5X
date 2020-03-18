@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 import csv
 from scipy.spatial.transform import Rotation
+from Viewer import PathState
 
 # debug
 import pickle
@@ -32,12 +33,14 @@ class PathGenerationDialog(QDialog):
 		self.__dl.label_status.setText("Select Source and Target mesh, transform source mesh to target mesh.")
 		self.__dl.pushButton_transform.clicked.connect(self.transform)
 		self.__dl.pushButton_boolean_operation.clicked.connect(self.boolean_operation)
+		self.__dl.pushButton_extraction_start.clicked.connect(self.startExtraction)
 		self.__dl.pushButton_delete_point.clicked.connect(self.deletePoint)
 		self.__dl.pushButton_show_axis.clicked.connect(self.showAxis)
 		self.__dl.pushButton_cut_vector.clicked.connect(self.findCutVector)
 		self.__dl.pushButton_save_path.clicked.connect(self.saveCutPath)
 		self.__dl.pushButton_delete_all.clicked.connect(self.deleteAll)
 		self.__dl.checkBox_show_normal.stateChanged.connect(self.setViewerNormal)
+		self.__dl.pushButton_generate_path.clicked.connect(self.generatePath)
 
 		self.show()
 
@@ -47,7 +50,6 @@ class PathGenerationDialog(QDialog):
 			self.viewer.to_show_normal = True
 		else:
 			self.viewer.to_show_normal = False 
-
 
 	def putSourceName(self, name):
 		self.__dl.lineEdit_source.setText(name)
@@ -60,6 +62,9 @@ class PathGenerationDialog(QDialog):
 		if self.__dl.lineEdit_source.text() != '':
 			self.__dl.label_status.setText("Select a point on target mesh, will show selected point and its normal vector.")
 
+	def putVolumeMeshName(self, name):
+		self.__dl.lineEdit_flat_end.setText(name)
+
 	def transform(self):
 		source_name = self.lineEdit_source.text()
 		target_name = self.lineEdit_target.text()
@@ -71,6 +76,19 @@ class PathGenerationDialog(QDialog):
 		self.__dl.label_status.setText("Working on Boolean operation...")
 		self.viewer.boolean_operation(source_name, target_name)
 		self.__dl.label_status.setText("Finished Boolean operation.")
+
+	def startExtraction(self):
+		self.viewer.state = PathState['EXTRACT']
+		self.viewer.setEnableDisableGroupActions()
+
+	def generatePath(self):
+		volume_mesh = self.__dl.lineEdit_flat_end.text()
+		if volume_mesh == '':
+			self.__dl.label_status.setText("Error: No volume mesh selected.")
+		else:
+			distance_between_layer = self.doubleSpinBox_dist_layer.value()
+			distance_between_line = self.doubleSpinBox_dist_line.value()
+			self.viewer.generatePath(volume_mesh, distance_between_layer, distance_between_line)
 
 	def closeWindow(self):
 		pass

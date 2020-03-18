@@ -5,8 +5,12 @@ import vtk
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 import numpy as np
 
+import Utils
 from Utils import VTKUtils
 from TwoMeshesInteraction import TwoMeshesInteraction
+from PathState import PathState
+from ViewerActionMenu import ViewerActionMenu
+from ActorInteractor import ActorInteractor
 
 MAGNIFY_RATIO = 3
 POINT_SIZE = 5
@@ -42,7 +46,11 @@ class Viewer(QFrame):
         # set up for context menu
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.onContextMenu)
-        self.actor_menu = ActorMenu(self)
+        self.action_menu = ViewerActionMenu(self)
+
+        # State flow flag for path generation
+        self.state = PathState['LOAD_FILES']
+        self.setEnableDisableGroupActions()
 
         # mesh file
         self.mesh_actors = {}
@@ -63,10 +71,6 @@ class Viewer(QFrame):
         # Multi-mesh interaction
         self.two_mesh_interaction = None
         self.extraction_finished = None
-        
-        # key A for actor mode
-        self.interactor.AddObserver("MiddleButtonPressEvent", self.onPressedActor)
-        self.interactor.AddObserver("MiddelButtonReleaseEvent", self.onReleasedActor)
 
     def start(self):
         self.interactor.Initialize()
@@ -216,7 +220,12 @@ class Viewer(QFrame):
         print("working on boolean operation...")
         actor = self.two_mesh_interaction.createBooleanOperationActor()
         actor = self.two_mesh_interaction.extractConnectedRegionActor(actor, extract_mode='all')
+
+        for mesh_actor in self.mesh_actors.values():
+            self.renderer.RemoveActor(mesh_actor)
+        self.mesh_actors['path_volume'] = actor
         self.renderer.AddActor(actor)
+        self.update()
 
     def update(self):
         self.renderer.GetRenderWindow().Render()
@@ -233,154 +242,94 @@ class Viewer(QFrame):
         self.path_generation_dialog = path_generation_dialog
         self.to_show_normal = self.path_generation_dialog.checkBox_show_normal.isChecked()
 
-
     def onContextMenu(self, point):
-        self.actor_menu.exec_(self.mapToGlobal(point))
+        self.action_menu.exec_(self.mapToGlobal(point))
         # self.popMenu.exec_(self.parent.mapToGlobal(point))
-    
-    def onPressedActor(self, obj, event):
-        print("key pressed")
-        self.setInteractorStyle('actor')
 
-    def onReleasedActor(self, obj, event):
-        print("key released")
-        self.setInteractorStyle('camera')
-
-
-class ActorInteractor(vtk.vtkInteractorStyleTrackballActor):
-    def __init__(self, parent):
-        super().__init__()
-        self.AddObserver("RightButtonPressEvent",self.rightButtonPressEvent)
-        self.picked_actor = None
-        self.parent = parent
-
-    def rightButtonPressEvent(self, obj, event):
-        clickPos = self.GetInteractor().GetEventPosition()
-        picker = vtk.vtkPropPicker()
-        picker.Pick(clickPos[0], clickPos[1], 0, self.parent.renderer)
+    def generatePath(self, mesh_name, dist_layer, dist_line):
+        mesh_actor = self.mesh_actors[mesh_name]
+        VTKUtils.vtkPointsToNumpyArray(mesh_actor.GetMapper().GetInput().GetPoints())
+        # c_main, normal_main = Utils.fitPlaneLTSQ()
+        # cross section
+        origin = VTKUtils.getCenterOfActor(mesh_actor)
+        normal_main = (1,0,0)
+        normal = (0,1,0)
+        print("origin")
+        print(origin)
+        for i in range(5):
+            #create a main plane to cut
+            plane_main=vtk.vtkPlane()
+            point_main = np.array(origin) + np.array(normal_main)* i 
+            plane_main.SetOrigin(point_main)
+            plane_main.SetNormal(normal_main)
+            #create cutter
+            cutter_main=vtk.vtkCutter()
+            cutter_main.SetCutFunction(plane_main)
+            cutter_main.SetInputData(actor_all.GetMapper().GetInput())
+            cutter_main.Update()
+            cutterMapper_main=vtk.vtkPolyDataMapper()
+            cutterMapper_main.SetInputConnection(cutter_main.GetOutputPort())
+            # actor_main = vtk.vtkActor()
+            # actor_main.SetMapper(cutterMapper_main)
+            # ren.AddActor(actor_main)
+            for j in range(5):
+                plane=vtk.vtkPlane()
+                point = point_main + np.array(normal)* j
+                plane.SetOrigin(point)
+                plane.SetNormal(normal)
+                #create cutter
+                cutter=vtk.vtkCutter()
+                cutter.SetCutFunction(plane)
+                cutter.SetInputConnection(cutter_main.GetOutputPort())
+                cutter.Update()
+                poly_data_vtk = cutter.GetOutput()
+                poly_data_numpy = VTKUtils.vtkPointsToNumpyArray(poly_data_vtk.GetPoints())
+                print("outer loop: " + str(i) + ", inner loop: " + str(j))
+                print(poly_data_numpy)
+                line_actor = VTKUtils.createLineActor(poly_data_numpy[0], poly_data_numpy[1])
+                cutterMapper=vtk.vtkPolyDataMapper()
+                cutterMapper.SetInputConnection(cutter.GetOutputPort())
+                actor = vtk.vtkActor()
+                actor.SetMapper(cutterMapper)
+                self.renderer.AddActor(actor)
+                self.renderer.AddActor(line_actor)
+        self.renderer.RemoveActor(mesh_actor)
         
-        # get actor 
-        self.picked_actor = picker.GetActor()
+    def setEnableDisableGroupActions(self):
 
-        # self.OnLeftButtonDown()
-        return
 
-class ActorMenu(QMenu):
-    def __init__(self, parent):
-        super().__init__()
-        self.parent = parent
-        action_target = QAction("Target", self)
-        action_source = QAction("Source", self)
-        action_start_extraction = QAction("Start Extraction", self)
-        action_extract_cell = QAction("Extract Cell", self)
-        action_finish_extraction = QAction("Finish Extraction", self)
-        action_delete_cell = QAction("Delete Cell", self)
-        action_target.triggered.connect(self.setTarget)
-        action_source.triggered.connect(self.setSource)
-        action_start_extraction.triggered.connect(self.startExtraction)
-        action_extract_cell.triggered.connect(self.extractCell)
-        action_finish_extraction.triggered.connect(self.finishExtraction)
-        action_delete_cell.triggered.connect(self.deleteCell)
-        self.addAction(action_target)
-        self.addAction(action_source)
-        self.addAction(action_start_extraction)
-        self.addAction(action_extract_cell)
-        self.addAction(action_finish_extraction)
-        self.addAction(action_delete_cell)
-    
-    def setTarget(self):
-        if isinstance(self.parent.interactor.GetInteractorStyle(), ActorInteractor):
-            if self.parent.interactor.GetInteractorStyle().picked_actor:
-                picked_actor = self.parent.interactor.GetInteractorStyle().picked_actor
-                for name, mesh_actor in self.parent.mesh_actors.items():
-                    if picked_actor is mesh_actor:
-                        self.parent.path_generation_dialog.putTargetName(name)
-            else:
-                text_info = "Please select on an actor."
-                self.parent.path_generation_dialog.label_status.setText(text_info)
+        print(type(self.action_menu.actions()))
+        # print(self.action_menu.actions())
+        # for action in self.action_menu.actions():
+        #     print(action.isSeparator())
+        if self.state == PathState['LOAD_FILES']:
+            # print(dir(self.action_menu))
+            self.action_menu.actions()[0].setEnabled(True)
+            self.action_menu.actions()[1].setEnabled(True)
+            self.action_menu.actions()[2].setEnabled(False)
+            self.action_menu.actions()[3].setEnabled(False)
+            self.action_menu.actions()[4].setEnabled(False)
+            self.action_menu.actions()[5].setEnabled(False)
 
+        elif self.state == PathState['EXTRACT']:
+            self.action_menu.actions()[0].setEnabled(False)
+            self.action_menu.actions()[1].setEnabled(False)
+            self.action_menu.actions()[2].setEnabled(True)
+            self.action_menu.actions()[3].setEnabled(True)
+            self.action_menu.actions()[4].setEnabled(True)
+            self.action_menu.actions()[5].setEnabled(False)
+
+        elif self.state == PathState['EXECUTE']:
+            self.action_menu.actions()[0].setEnabled(False)
+            self.action_menu.actions()[1].setEnabled(False)
+            self.action_menu.actions()[2].setEnabled(False)
+            self.action_menu.actions()[3].setEnabled(False)
+            self.action_menu.actions()[4].setEnabled(False)
+            self.action_menu.actions()[5].setEnabled(True)
         else:
-            text_info = "Select source and target in wrong mode. \n Check VTK mode to be actor."
-            self.parent.path_generation_dialog.label_status.setText(text_info)
-
-    def setSource(self):
-        if isinstance(self.parent.interactor.GetInteractorStyle(), ActorInteractor):
-            if self.parent.interactor.GetInteractorStyle().picked_actor:
-                picked_actor = self.parent.interactor.GetInteractorStyle().picked_actor
-                for name, mesh_actor in self.parent.mesh_actors.items():
-                    if picked_actor is mesh_actor:
-                        self.parent.path_generation_dialog.putSourceName(name)
-            else:
-                text_info = "Please select on an actor."
-                self.parent.path_generation_dialog.label_status.setText(text_info)
-        else:
-            text_info = "Select source and target in wrong mode. \n Check VTK mode to be actor."
-            self.parent.path_generation_dialog.label_status.setText(text_info)
-
-    def startExtraction(self):
-        clickPos = self.parent.interactor.GetEventPosition()
-        cell_picker = vtk.vtkCellPicker()
-        cell_picker.Pick(clickPos[0], clickPos[1], 0, self.parent.renderer)
-        cell_id = cell_picker.GetCellId()
-        if cell_id > 0:
-            self.actor_to_be_extracted = cell_picker.GetActor()
-            self.parent.extraction_finished = False
-            self.append_filter = vtk.vtkAppendPolyData()
-            print("Start extraction.")
-        else:
-            print("No actor is selected, extraction is not started yet.")
-
-    def finishExtraction(self):
-        # reset extraction mode
-        self.parent.extraction_finished = None
-        # create extraction actor
-        mapper = self.actor_to_be_extracted.GetMapper()
-        mapper.SetInputConnection(self.append_filter.GetOutputPort())  
-        self.parent.update()
-        print("Finished extraction")
-
-    def extractCell(self):
-        clickPos = self.parent.interactor.GetEventPosition()
-        cell_picker = vtk.vtkCellPicker()
-        cell_picker.Pick(clickPos[0], clickPos[1], 0, self.parent.renderer)
-        cell_id = cell_picker.GetCellId()
-        if self.parent.extraction_finished is None:
-            print("not in extraction mode")
-            return
-        if not self.parent.extraction_finished:
-            cell_id = cell_picker.GetCellId()
-            if cell_id > 0:
-                print(cell_id)
-                actor = cell_picker.GetActor()
-                actor_cc = self.parent.two_mesh_interaction.extractConnectedRegionActor(actor, extract_mode='cell', cell_id=cell_id)
-
-                # append poly data
-                poly_data = actor_cc.GetMapper().GetInput()
-                self.append_filter.AddInputData(poly_data)
-
-            else:
-                print("No cell picked")
-
-    def deleteCell(self):
-        pass
-        # clickPos = self.parent.interactor.GetEventPosition()
-        # cell_picker = vtk.vtkCellPicker()
-        # cell_picker.Pick(clickPos[0], clickPos[1], 0, self.parent.renderer)
-        # cell_id = cell_picker.GetCellId()
-        # if self.parent.extraction_finished is None:
-        #     print("not in extraction mode")
-        #     return
-        # if not self.parent.extraction_finished:
-        #     cell_id = object.GetCellId()
-        #     if cell_id > 0:
-        #         print(cell_id)
-        #         actor = cell_picker.GetActor()
-        #         actor_cc = self.parent.two_mesh_interaction.extractConnectedRegionActor(actor, extract_mode='cell', cell_id=cell_id)
-        #         # # delete cell from actor
-        #         # poly_data = actor.GetMapper().GetInput()
-        #         # poly_data.DeleteCell(cell_id)
-        #         # poly_data.RemoveDeletedCells()
-
-        #         # append poly data
-        #         poly_data = actor_cc.GetMapper().GetInput()
-        #         append_filter.AddInputData(poly_data)
+            self.action_menu.actions()[0].setEnabled(False)
+            self.action_menu.actions()[1].setEnabled(False)
+            self.action_menu.actions()[2].setEnabled(False)
+            self.action_menu.actions()[3].setEnabled(False)
+            self.action_menu.actions()[4].setEnabled(False)
+            self.action_menu.actions()[5].setEnabled(False)
