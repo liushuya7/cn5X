@@ -169,17 +169,64 @@ def main():
         nonlocal extraction_finished
         if  extraction_finished is None:
             extraction_finished = False
+            print("Start extraction")
 
         elif extraction_finished == False:
-            extraction_finished = True
-        else:
             # create extraction actor
             mapper = actor_all.GetMapper()
             mapper.SetInputConnection(append_filter.GetOutputPort())  
             # ren.RemoveActor(actor)
             # ren.AddActor(actor_cc)
             ren.GetRenderWindow().Render()
-            print("Finished")
+            print("Finished extraction")
+            
+            extraction_finished = True
+        else:
+            # cross section
+            origin = VTKUtils.getCenterOfActor(actor_all)
+            normal_main = (1,0,0)
+            normal = (0,1,0)
+            print("origin")
+            print(origin)
+            for i in range(5):
+                #create a main plane to cut
+                plane_main=vtk.vtkPlane()
+                point_main = np.array(origin) + np.array(normal_main)* i 
+                plane_main.SetOrigin(point_main)
+                plane_main.SetNormal(normal_main)
+                #create cutter
+                cutter_main=vtk.vtkCutter()
+                cutter_main.SetCutFunction(plane_main)
+                cutter_main.SetInputData(actor_all.GetMapper().GetInput())
+                cutter_main.Update()
+                cutterMapper_main=vtk.vtkPolyDataMapper()
+                cutterMapper_main.SetInputConnection(cutter_main.GetOutputPort())
+                # actor_main = vtk.vtkActor()
+                # actor_main.SetMapper(cutterMapper_main)
+                # ren.AddActor(actor_main)
+                for j in range(5):
+                    plane=vtk.vtkPlane()
+                    point = point_main + np.array(normal)* j
+                    plane.SetOrigin(point)
+                    plane.SetNormal(normal)
+                    #create cutter
+                    cutter=vtk.vtkCutter()
+                    cutter.SetCutFunction(plane)
+                    cutter.SetInputConnection(cutter_main.GetOutputPort())
+                    cutter.Update()
+                    poly_data_vtk = cutter.GetOutput()
+                    poly_data_numpy = VTKUtils.vtkPointsToNumpyArray(poly_data_vtk.GetPoints())
+                    print("outer loop: " + str(i) + ", inner loop: " + str(j))
+                    print(poly_data_numpy)
+                    line_actor = VTKUtils.createLineActor(poly_data_numpy[0], poly_data_numpy[1])
+                    cutterMapper=vtk.vtkPolyDataMapper()
+                    cutterMapper.SetInputConnection(cutter.GetOutputPort())
+                    actor = vtk.vtkActor()
+                    actor.SetMapper(cutterMapper)
+                    ren.AddActor(actor)
+                    ren.AddActor(line_actor)
+            ren.RemoveActor(actor_all)
+            ren.GetRenderWindow().Render()
 
     cell_picker = vtk.vtkCellPicker()
     cell_picker.AddObserver("EndPickEvent", processCellPick)
@@ -193,19 +240,6 @@ def main():
     # center_template = VTKUtils.getCenterOfActor(actors['template'])
     # plane_actor = VTKUtils.createPlaneActor(center_template, normal_template, offset=0)
     # ren.AddActor(plane_actor)
-
-    # #create a plane to cut,here it cuts in the XZ direction (xz normal=(1,0,0);XY =(0,0,1),YZ =(0,1,0)
-    # plane=vtk.vtkPlane()
-    # plane.SetOrigin()
-    # plane.SetNormal(1,0,0)
-
-    # # #create cutter
-    # # cutter=vtk.vtkCutter()
-    # # cutter.SetCutFunction(plane)
-    # # cutter.SetInputConnection(cube.GetOutputPort())
-    # # cutter.Update()
-    # # cutterMapper=vtk.vtkPolyDataMapper()
-    # # cutterMapper.SetInputConnection( cutter.GetOutputPort())
 
     ren.ResetCamera()
     ren.GetRenderWindow().Render()

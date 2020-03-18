@@ -63,6 +63,10 @@ class Viewer(QFrame):
         # Multi-mesh interaction
         self.two_mesh_interaction = None
         self.extraction_finished = None
+        
+        # key A for actor mode
+        self.interactor.AddObserver("MiddleButtonPressEvent", self.onPressedActor)
+        self.interactor.AddObserver("MiddelButtonReleaseEvent", self.onReleasedActor)
 
     def start(self):
         self.interactor.Initialize()
@@ -233,6 +237,14 @@ class Viewer(QFrame):
     def onContextMenu(self, point):
         self.actor_menu.exec_(self.mapToGlobal(point))
         # self.popMenu.exec_(self.parent.mapToGlobal(point))
+    
+    def onPressedActor(self, obj, event):
+        print("key pressed")
+        self.setInteractorStyle('actor')
+
+    def onReleasedActor(self, obj, event):
+        print("key released")
+        self.setInteractorStyle('camera')
 
 
 class ActorInteractor(vtk.vtkInteractorStyleTrackballActor):

@@ -1283,6 +1283,16 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     self.ui.doubleSpinBox_laser_test.setValue(slider_value/10.0)
 
 # VTK Viewer Mode
+  # def keyPressEvent(self, event):
+  #     if event.key() == Qt.Key_A:
+  #       print("key pressed")
+  #       # self.vtk_viewer.setInteractorStyle(style='actor')
+
+  # def keyReleaseEvent(self, event):
+  #     if event.key() == Qt.Key_A:
+  #       print("key released")
+  #       # self.vtk_viewer.setInteractorStyle(style='camera')
+
   def swtichInteractorStyle(self):
 
     if self.ui.radioButton_actor.isChecked():
