@@ -43,15 +43,6 @@ class Viewer(QFrame):
         self.interactor = interactor
         self.render_window = render_window
 
-        # set up for context menu
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.customContextMenuRequested.connect(self.onContextMenu)
-        self.action_menu = ViewerActionMenu(self)
-
-        # State flow flag for path generation
-        self.state = PathState['LOAD_FILES']
-        self.setEnableDisableGroupActions()
-
         # mesh file
         self.mesh_actors = {}
 
@@ -70,7 +61,6 @@ class Viewer(QFrame):
 
         # Multi-mesh interaction
         self.two_mesh_interaction = None
-        self.extraction_finished = None
 
     def start(self):
         self.interactor.Initialize()
@@ -220,6 +210,7 @@ class Viewer(QFrame):
         print("working on boolean operation...")
         actor = self.two_mesh_interaction.createBooleanOperationActor()
         actor = self.two_mesh_interaction.extractConnectedRegionActor(actor, extract_mode='all')
+        print("boolean operation is finished")
 
         for mesh_actor in self.mesh_actors.values():
             self.renderer.RemoveActor(mesh_actor)
@@ -239,8 +230,15 @@ class Viewer(QFrame):
         self.interactor.SetInteractorStyle(interactor_style)
 
     def addPathGenerationDialog(self, path_generation_dialog):
+        # add path generation dialog
         self.path_generation_dialog = path_generation_dialog
         self.to_show_normal = self.path_generation_dialog.checkBox_show_normal.isChecked()
+
+    def addActionMenu(self):
+        # set up for context menu
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.onContextMenu)
+        self.action_menu = ViewerActionMenu(self)
 
     def onContextMenu(self, point):
         self.action_menu.exec_(self.mapToGlobal(point))
@@ -295,41 +293,3 @@ class Viewer(QFrame):
                 self.renderer.AddActor(line_actor)
         self.renderer.RemoveActor(mesh_actor)
         
-    def setEnableDisableGroupActions(self):
-
-
-        print(type(self.action_menu.actions()))
-        # print(self.action_menu.actions())
-        # for action in self.action_menu.actions():
-        #     print(action.isSeparator())
-        if self.state == PathState['LOAD_FILES']:
-            # print(dir(self.action_menu))
-            self.action_menu.actions()[0].setEnabled(True)
-            self.action_menu.actions()[1].setEnabled(True)
-            self.action_menu.actions()[2].setEnabled(False)
-            self.action_menu.actions()[3].setEnabled(False)
-            self.action_menu.actions()[4].setEnabled(False)
-            self.action_menu.actions()[5].setEnabled(False)
-
-        elif self.state == PathState['EXTRACT']:
-            self.action_menu.actions()[0].setEnabled(False)
-            self.action_menu.actions()[1].setEnabled(False)
-            self.action_menu.actions()[2].setEnabled(True)
-            self.action_menu.actions()[3].setEnabled(True)
-            self.action_menu.actions()[4].setEnabled(True)
-            self.action_menu.actions()[5].setEnabled(False)
-
-        elif self.state == PathState['EXECUTE']:
-            self.action_menu.actions()[0].setEnabled(False)
-            self.action_menu.actions()[1].setEnabled(False)
-            self.action_menu.actions()[2].setEnabled(False)
-            self.action_menu.actions()[3].setEnabled(False)
-            self.action_menu.actions()[4].setEnabled(False)
-            self.action_menu.actions()[5].setEnabled(True)
-        else:
-            self.action_menu.actions()[0].setEnabled(False)
-            self.action_menu.actions()[1].setEnabled(False)
-            self.action_menu.actions()[2].setEnabled(False)
-            self.action_menu.actions()[3].setEnabled(False)
-            self.action_menu.actions()[4].setEnabled(False)
-            self.action_menu.actions()[5].setEnabled(False)

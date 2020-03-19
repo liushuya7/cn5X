@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 import csv
 from scipy.spatial.transform import Rotation
-from Viewer import PathState
+from PathState import PathState
 
 # debug
 import pickle
@@ -42,6 +42,11 @@ class PathGenerationDialog(QDialog):
 		self.__dl.checkBox_show_normal.stateChanged.connect(self.setViewerNormal)
 		self.__dl.pushButton_generate_path.clicked.connect(self.generatePath)
 
+		# State flow flag for path generation
+		self.state = PathState['LOAD_FILES']
+		self.viewer.addActionMenu()
+		self.viewer.action_menu.setEnableDisableGroupActions(self.state)
+
 		self.show()
 
 
@@ -73,13 +78,17 @@ class PathGenerationDialog(QDialog):
 	def boolean_operation(self):
 		source_name = self.lineEdit_source.text()
 		target_name = self.lineEdit_target.text()
-		self.__dl.label_status.setText("Working on Boolean operation...")
 		self.viewer.boolean_operation(source_name, target_name)
 		self.__dl.label_status.setText("Finished Boolean operation.")
 
 	def startExtraction(self):
-		self.viewer.state = PathState['EXTRACT']
-		self.viewer.setEnableDisableGroupActions()
+		self.state = PathState['EXTRACT']
+		self.viewer.action_menu.setEnableDisableGroupActions(self.state)
+		self.viewer.action_menu.initializeExtraction()
+		text_info = "Start Extraction: Right click on the viewer to select cell for its connected region."
+		self.label_status.setText(text_info)
+		print(text_info)
+
 
 	def generatePath(self):
 		volume_mesh = self.__dl.lineEdit_flat_end.text()

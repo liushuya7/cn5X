@@ -32,9 +32,6 @@ class ViewerActionMenu(QMenu):
         # self.addSection("Path Generation")
         self.addAction(action_set_volume_mesh)
         
-    def setEnableExtraction(self):
-        self.setEnabled()
-    
     def setTarget(self):
         if isinstance(self.parent.interactor.GetInteractorStyle(), ActorInteractor):
             if self.parent.interactor.GetInteractorStyle().picked_actor:
@@ -45,10 +42,15 @@ class ViewerActionMenu(QMenu):
             else:
                 text_info = "Please select on an actor."
                 self.parent.path_generation_dialog.label_status.setText(text_info)
+                print(text_info)
 
         else:
             text_info = "Select source and target in wrong mode. \n Check VTK mode to be actor."
             self.parent.path_generation_dialog.label_status.setText(text_info)
+            print(text_info)
+
+    def initializeExtraction(self):
+        self.actor_to_be_extracted = None
 
     def setSource(self):
         if isinstance(self.parent.interactor.GetInteractorStyle(), ActorInteractor):
@@ -60,59 +62,85 @@ class ViewerActionMenu(QMenu):
             else:
                 text_info = "Please select on an actor."
                 self.parent.path_generation_dialog.label_status.setText(text_info)
+                print(text_info)
         else:
             text_info = "Select source and target in wrong mode. \n Check VTK mode to be actor."
             self.parent.path_generation_dialog.label_status.setText(text_info)
+            print(text_info)
 
-    def startExtraction(self):
+    def setVolumeMesh(self):
+
+        if isinstance(self.parent.interactor.GetInteractorStyle(), ActorInteractor):
+            if self.parent.interactor.GetInteractorStyle().picked_actor:
+                picked_actor = self.parent.interactor.GetInteractorStyle().picked_actor
+                # check state
+                if self.parent.path_generation_dialog.state == PathState['EXTRACT']:
+                    self.actor_to_be_extracted = picked_actor 
+                    self.append_filter = vtk.vtkAppendPolyData()
+                    text_info = "Start Extraction: Right click on the viewer to select cell for its connected region"
+                    self.parent.path_generation_dialog.label_status.setText(text_info)
+                    print(text_info)
+
+                elif self.parent.path_generation_dialog.state == PathState['EXECUTE']:
+                    for name, mesh_actor in self.parent.mesh_actors.items():
+                        if picked_actor is mesh_actor:
+                            self.parent.path_generation_dialog.putVolumeMeshName(name)
+            else:
+                text_info = "Please select on an actor."
+                self.parent.path_generation_dialog.label_status.setText(text_info)
+
+        else:
+            text_info = "Select volume mesh in wrong mode. \n Check VTK mode to be actor."
+            self.parent.path_generation_dialog.label_status.setText(text_info)
+            print(text_info)
+    
+    def finishExtraction(self):
+        # create extraction actor
+        mapper = self.actor_to_be_extracted.GetMapper()
+        mapper.SetInputConnection(self.append_filter.GetOutputPort())  
+        self.parent.update()
+
+        self.parent.path_generation_dialog.state = PathState['EXECUTE']
+        self.setEnableDisableGroupActions(PathState['EXECUTE'])
+
+        text_info = "Finished Extraction. Turn to EXECUTE state"
+        self.parent.path_generation_dialog.label_status.setText(text_info)
+        print(text_info)
+
+    def extractCell(self):
+
+        if not self.actor_to_be_extracted:
+            text_info = "No actor selected to be extracted yet!"
+            self.parent.path_generation_dialog.label_status.setText(text_info)
+            print(text_info)
+            return 
+        if self.parent.path_generation_dialog.state != PathState['EXTRACT']:
+            text_info = "Not in extraction mode!"
+            self.parent.path_generation_dialog.label_status.setText(text_info)
+            print(text_info)
+            return
+
         clickPos = self.parent.interactor.GetEventPosition()
         cell_picker = vtk.vtkCellPicker()
         cell_picker.Pick(clickPos[0], clickPos[1], 0, self.parent.renderer)
         cell_id = cell_picker.GetCellId()
         if cell_id > 0:
-            self.actor_to_be_extracted = cell_picker.GetActor()
-            self.parent.extraction_finished = False
-            self.append_filter = vtk.vtkAppendPolyData()
-            text_info = "Start Extraction: Right click on the viewer to select cell for its connected region"
+
+            actor = cell_picker.GetActor()
+            actor_cc = self.parent.two_mesh_interaction.extractConnectedRegionActor(actor, extract_mode='cell', cell_id=cell_id)
+
+            # append poly data
+            poly_data = actor_cc.GetMapper().GetInput()
+            self.append_filter.AddInputData(poly_data)
+
+            text_info = "Cell " + str(cell_id) + " and its connected region is selected!"
             self.parent.path_generation_dialog.label_status.setText(text_info)
+            print(text_info)
+
         else:
-            print("No actor is selected, extraction is not started yet.")
-
-    def finishExtraction(self):
-        # reset extraction mode
-        self.parent.extraction_finished = None
-        # create extraction actor
-        mapper = self.actor_to_be_extracted.GetMapper()
-        mapper.SetInputConnection(self.append_filter.GetOutputPort())  
-        self.parent.update()
-        text_info = "Start Extraction: Right click on the viewer to select cell for its connected region"
-        self.parent.path_generation_dialog.label_status.setText(text_info)
-        self.parent.state = PathState['EXECUTE']
-        self.parent.setEnableDisableGroupActions()
-
-    def extractCell(self):
-        clickPos = self.parent.interactor.GetEventPosition()
-        cell_picker = vtk.vtkCellPicker()
-        cell_picker.Pick(clickPos[0], clickPos[1], 0, self.parent.renderer)
-        cell_id = cell_picker.GetCellId()
-        if self.parent.extraction_finished is None:
-            print("not in extraction mode")
-            return
-        if not self.parent.extraction_finished:
-            cell_id = cell_picker.GetCellId()
-            if cell_id > 0:
-                print(cell_id)
-                actor = cell_picker.GetActor()
-                actor_cc = self.parent.two_mesh_interaction.extractConnectedRegionActor(actor, extract_mode='cell', cell_id=cell_id)
-
-                # append poly data
-                poly_data = actor_cc.GetMapper().GetInput()
-                self.append_filter.AddInputData(poly_data)
-                text_info = "Start Extraction: Right click on the viewer to select cell for its connected region"
-                self.parent.path_generation_dialog.label_status.setText(text_info)
-
-            else:
-                print("No cell picked")
+            text_info = "No cell picked"
+            self.parent.path_generation_dialog.label_status.setText(text_info)
+            print(text_info)
 
     def deleteCell(self):
         pass
@@ -138,17 +166,37 @@ class ViewerActionMenu(QMenu):
         #         poly_data = actor_cc.GetMapper().GetInput()
         #         append_filter.AddInputData(poly_data)
 
-    def setVolumeMesh(self):
-        if isinstance(self.parent.interactor.GetInteractorStyle(), ActorInteractor):
-            if self.parent.interactor.GetInteractorStyle().picked_actor:
-                picked_actor = self.parent.interactor.GetInteractorStyle().picked_actor
-                for name, mesh_actor in self.parent.mesh_actors.items():
-                    if picked_actor is mesh_actor:
-                        self.parent.path_generation_dialog.putVolumeMeshName(name)
-            else:
-                text_info = "Please select on an actor."
-                self.parent.path_generation_dialog.label_status.setText(text_info)
 
+    def setEnableDisableGroupActions(self, state):
+
+        if state == PathState['LOAD_FILES']:
+            # print(dir(self.action_menu))
+            self.actions()[0].setEnabled(True)
+            self.actions()[1].setEnabled(True)
+            self.actions()[2].setEnabled(False)
+            self.actions()[3].setEnabled(False)
+            self.actions()[4].setEnabled(False)
+            self.actions()[5].setEnabled(False)
+
+        elif state == PathState['EXTRACT']:
+            self.actions()[0].setEnabled(False)
+            self.actions()[1].setEnabled(False)
+            self.actions()[2].setEnabled(True)
+            self.actions()[3].setEnabled(True)
+            self.actions()[4].setEnabled(True)
+            self.actions()[5].setEnabled(True)
+
+        elif state == PathState['EXECUTE']:
+            self.actions()[0].setEnabled(False)
+            self.actions()[1].setEnabled(False)
+            self.actions()[2].setEnabled(False)
+            self.actions()[3].setEnabled(False)
+            self.actions()[4].setEnabled(False)
+            self.actions()[5].setEnabled(True)
         else:
-            text_info = "Select volume mesh in wrong mode. \n Check VTK mode to be actor."
-            self.parent.path_generation_dialog.label_status.setText(text_info)
+            self.actions()[0].setEnabled(False)
+            self.actions()[1].setEnabled(False)
+            self.actions()[2].setEnabled(False)
+            self.actions()[3].setEnabled(False)
+            self.actions()[4].setEnabled(False)
+            self.actions()[5].setEnabled(False)

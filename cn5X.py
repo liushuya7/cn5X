@@ -1290,7 +1290,6 @@ class GrblMainwindow(QtWidgets.QMainWindow):
       self.ui.radioButton_actor.setChecked(True)
 
     self.switchInteractorStyle()
-    self.addSection("Extraction")
 
   def switchInteractorStyle(self):
 
