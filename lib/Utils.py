@@ -157,6 +157,18 @@ class VTKUtils(object):
         return actor
 
     @staticmethod
+    def createBoundingBoxActor(actor):
+        bounds = actor.GetBounds()
+        cube_source = vtk.vtkCubeSource()
+        cube_source.SetBounds(bounds)
+        mapper_cube=vtk.vtkPolyDataMapper()
+        mapper_cube.SetInputConnection(cube_source.GetOutputPort())
+        actor_cube = vtk.vtkActor()
+        actor_cube.SetMapper(mapper_cube)
+
+        return actor_cube
+
+    @staticmethod
     def transformActor(actor, vtk_transform):
 
         actor.SetUserTransform(vtk_transform)

@@ -13,14 +13,14 @@ class ViewerActionMenu(QMenu):
         action_extract_cell = QAction("Extract Cell", self)
         action_finish_extraction = QAction("Finish Extraction", self)
         action_delete_cell = QAction("Delete Cell", self)
-        action_set_volume_mesh = QAction("Set Volume Mesh", self)
+        action_select_active = QAction("Select Active", self)
 
         action_target.triggered.connect(self.setTarget)
         action_source.triggered.connect(self.setSource)
         action_extract_cell.triggered.connect(self.extractCell)
         action_finish_extraction.triggered.connect(self.finishExtraction)
         action_delete_cell.triggered.connect(self.deleteCell)
-        action_set_volume_mesh.triggered.connect(self.setVolumeMesh)
+        action_select_active.triggered.connect(self.selectActive)
 
         # self.addSection("Start")
         self.addAction(action_target)
@@ -30,7 +30,7 @@ class ViewerActionMenu(QMenu):
         self.addAction(action_finish_extraction)
         self.addAction(action_delete_cell)
         # self.addSection("Path Generation")
-        self.addAction(action_set_volume_mesh)
+        self.addAction(action_select_active)
         
     def setTarget(self):
         if isinstance(self.parent.interactor.GetInteractorStyle(), ActorInteractor):
@@ -68,7 +68,7 @@ class ViewerActionMenu(QMenu):
             self.parent.path_generation_dialog.label_status.setText(text_info)
             print(text_info)
 
-    def setVolumeMesh(self):
+    def selectActive(self):
 
         if isinstance(self.parent.interactor.GetInteractorStyle(), ActorInteractor):
             if self.parent.interactor.GetInteractorStyle().picked_actor:

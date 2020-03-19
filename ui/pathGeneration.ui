@@ -25,6 +25,9 @@
         <property name="text">
          <string/>
         </property>
+        <property name="textFormat">
+         <enum>Qt::AutoText</enum>
+        </property>
        </widget>
       </item>
       <item>
@@ -112,7 +115,7 @@
           </property>
           <widget class="QWidget" name="tabl_template_end">
            <attribute name="title">
-            <string>Flat End</string>
+            <string>Template End</string>
            </attribute>
            <layout class="QVBoxLayout" name="verticalLayout_4">
             <item>

@@ -247,49 +247,91 @@ class Viewer(QFrame):
     def generatePath(self, mesh_name, dist_layer, dist_line):
         mesh_actor = self.mesh_actors[mesh_name]
         VTKUtils.vtkPointsToNumpyArray(mesh_actor.GetMapper().GetInput().GetPoints())
+
         # c_main, normal_main = Utils.fitPlaneLTSQ()
         # cross section
-        origin = VTKUtils.getCenterOfActor(mesh_actor)
-        normal_main = (1,0,0)
-        normal = (0,1,0)
-        print("origin")
-        print(origin)
-        for i in range(5):
+        centroid = VTKUtils.getCenterOfActor(mesh_actor)
+        point_reference = self.picked_point
+        normal_main = self.normal_vector
+        vector_augmented = np.array(point_reference) - np.array(centroid)
+        normal = np.cross(normal_main, vector_augmented)
+        normal = normal/np.linalg.norm(normal)
+        
+        layer_finished = False
+        layer_count = 0
+        while not layer_finished: 
+            layer_count += 1
             #create a main plane to cut
             plane_main=vtk.vtkPlane()
-            point_main = np.array(origin) + np.array(normal_main)* i 
+            point_main = np.array(point_reference) - np.array(normal_main) * dist_layer * layer_count
             plane_main.SetOrigin(point_main)
             plane_main.SetNormal(normal_main)
             #create cutter
             cutter_main=vtk.vtkCutter()
             cutter_main.SetCutFunction(plane_main)
-            cutter_main.SetInputData(actor_all.GetMapper().GetInput())
+            cutter_main.SetInputData(mesh_actor.GetMapper().GetInput())
             cutter_main.Update()
-            cutterMapper_main=vtk.vtkPolyDataMapper()
-            cutterMapper_main.SetInputConnection(cutter_main.GetOutputPort())
-            # actor_main = vtk.vtkActor()
-            # actor_main.SetMapper(cutterMapper_main)
-            # ren.AddActor(actor_main)
-            for j in range(5):
-                plane=vtk.vtkPlane()
-                point = point_main + np.array(normal)* j
-                plane.SetOrigin(point)
-                plane.SetNormal(normal)
-                #create cutter
-                cutter=vtk.vtkCutter()
-                cutter.SetCutFunction(plane)
-                cutter.SetInputConnection(cutter_main.GetOutputPort())
-                cutter.Update()
-                poly_data_vtk = cutter.GetOutput()
-                poly_data_numpy = VTKUtils.vtkPointsToNumpyArray(poly_data_vtk.GetPoints())
-                print("outer loop: " + str(i) + ", inner loop: " + str(j))
-                print(poly_data_numpy)
-                line_actor = VTKUtils.createLineActor(poly_data_numpy[0], poly_data_numpy[1])
-                cutterMapper=vtk.vtkPolyDataMapper()
-                cutterMapper.SetInputConnection(cutter.GetOutputPort())
-                actor = vtk.vtkActor()
-                actor.SetMapper(cutterMapper)
-                self.renderer.AddActor(actor)
-                self.renderer.AddActor(line_actor)
+            if cutter_main.GetOutput().GetNumberOfCells() > 0:
+                cutterMapper_main=vtk.vtkPolyDataMapper()
+                cutterMapper_main.SetInputConnection(cutter_main.GetOutputPort())
+                # actor_main = vtk.vtkActor()
+                # actor_main.SetMapper(cutterMapper_main)
+                # ren.AddActor(actor_main)
+                line_1_finished = False
+                line_2_finished = False
+                line_count = 0
+                while not (line_1_finished and line_2_finished):
+                    if not line_1_finished:
+                        plane=vtk.vtkPlane()
+                        point = point_main + np.array(normal) * dist_line * line_count
+                        plane.SetOrigin(point)
+                        plane.SetNormal(normal)
+                        #create cutter
+                        cutter=vtk.vtkCutter()
+                        cutter.SetCutFunction(plane)
+                        cutter.SetInputConnection(cutter_main.GetOutputPort())
+                        cutter.Update()
+                        poly_data_vtk = cutter.GetOutput()
+                        poly_data_numpy = VTKUtils.vtkPointsToNumpyArray(poly_data_vtk.GetPoints())
+                        if len(poly_data_numpy) > 0:
+                            if len(poly_data_numpy)== 2:
+                                line_actor = VTKUtils.createLineActor(poly_data_numpy[0], poly_data_numpy[1])
+                                self.renderer.AddActor(line_actor)
+                            cutterMapper=vtk.vtkPolyDataMapper()
+                            cutterMapper.SetInputConnection(cutter.GetOutputPort())
+                            actor = vtk.vtkActor()
+                            actor.SetMapper(cutterMapper)
+                            self.renderer.AddActor(actor)
+                        else:
+                            line_1_finished = True
+
+                    line_count += 1
+
+                    if not line_2_finished:
+                        plane=vtk.vtkPlane()
+                        point = point_main - np.array(normal) * dist_line * line_count
+                        plane.SetOrigin(point)
+                        plane.SetNormal(normal)
+                        #create cutter
+                        cutter=vtk.vtkCutter()
+                        cutter.SetCutFunction(plane)
+                        cutter.SetInputConnection(cutter_main.GetOutputPort())
+                        cutter.Update()
+                        poly_data_vtk = cutter.GetOutput()
+                        poly_data_numpy = VTKUtils.vtkPointsToNumpyArray(poly_data_vtk.GetPoints())
+                        if len(poly_data_numpy) > 0:
+                            if len(poly_data_numpy)== 2:
+                                line_actor = VTKUtils.createLineActor(poly_data_numpy[0], poly_data_numpy[1])
+                                self.renderer.AddActor(line_actor)
+                            cutterMapper=vtk.vtkPolyDataMapper()
+                            cutterMapper.SetInputConnection(cutter.GetOutputPort())
+                            actor = vtk.vtkActor()
+                            actor.SetMapper(cutterMapper)
+                            self.renderer.AddActor(actor)
+                        else:
+                            line_2_finished = True
+                    
+            else:
+                layer_finished = True
         self.renderer.RemoveActor(mesh_actor)
         
