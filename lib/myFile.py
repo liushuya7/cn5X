@@ -398,3 +398,153 @@ class stlFile(QObject):
 
   def setStlTransformed(self, value:bool):
     self.__modelTransformed = value
+
+
+'''--------------------------------- VTK File Class -------------------------------------------------'''
+
+class vtkFile(QObject):
+  '''
+   Management of a VTK file in VTK Viewer
+   Methods :
+   - __init __ (Viewer) -> Initializes and defines the elements of the UI which will receive the content of the file
+   - showFileOpen () -> Displays the opening dialog box
+   - showFileSave () -> Displays the recording dialog
+   - readFile (filePath) -> Loads a file into the VTK Viewer
+   - saveFile (filePath) -> Save the contents of the VTK Viewer in a file
+   - closeFile () -> Clear the VTK Viewer
+   - setStlTransformed (bool) -> Defines if the content of the list has been modified since the reading or saving of the file
+   - bool = modelTransformed () -> Return true if the content of the list has been modified since the file was read or saved
+  '''
+
+  sig_log     = pyqtSignal(int, str)
+
+  def __init__(self, vtkRender: Viewer):
+    super().__init__()
+    self.__filePath         = ""
+    self.__vtkRender      = vtkRender
+    self.__vtkCharge      = False
+    self.__modelTransformed     = False
+
+  def showFileOpen(self):
+    # Displays the opening dialog
+    opt = QtWidgets.QFileDialog.Options()
+    opt |= QtWidgets.QFileDialog.DontUseNativeDialog
+    fileName = QtWidgets.QFileDialog.getOpenFileName(None, "Open a vtk file", MESH_PATH ,"VTK (*.vtk)", options=opt)
+    return fileName
+
+  def readFile(self, filePath: str):
+    self.sig_log.emit(logSeverity.info.value, "Read the VTK file : {}".format(filePath))
+    try:
+      # Load the model into VTK render
+      self.__vtkRender.loadVTK(filePath)
+    except Exception as e:
+      self.sig_log.emit(logSeverity.error.value, "STL File read error : {}".format(filePath))
+      self.sig_log.emit(logSeverity.error.value, str(e))
+      self.__filePath     = ""
+      self.__modelTransformed = False
+      return False
+
+    # Everything is good
+    self.__vtkCharge = True
+    self.__filePath     = filePath
+    self.__modelTransformed = False
+    return True
+
+  def isFileLoaded(self):
+    return self.__vtkCharge
+
+  def filePath(self):
+    return self.__filePath
+
+  def saveAs(self):
+    fileName = self.showFileSave()
+    if fileName[0] != "":
+      self.sig_log.emit(logSeverity.info.value, self.tr("saveAs({})").format(fileName[0]))
+      self.saveFile(fileName[0])
+    else:
+      self.sig_log.emit(logSeverity.info.value, self.tr("saveAs() canceled !"))
+
+  def showFileSave(self):
+    ''' Displays the "Save as" dialog '''
+    opt = QtWidgets.QFileDialog.Options()
+    opt |= QtWidgets.QFileDialog.DontUseNativeDialog
+    fileName = QtWidgets.QFileDialog.getSaveFileName(None, "Save a GCode file", "", "Save GCode (*.gcode *.ngc *.nc *.gc *.cnc)", options=opt)
+    return fileName
+
+  def saveFile(self, filePath: str = ""):
+    if filePath == "":
+      if self.__filePath == "":
+        self.sig_log.emit(logSeverity.info.value, "The name of the file is not defined, there is no file loaded, therefore, nothing to save!")
+        return
+      else:
+        filePath = self.__filePath
+    self.sig_log.emit(logSeverity.info.value, "Save file: {}".format(filePath))
+    try:
+      f = open(filePath, 'w')
+      for I in range(self.__vtkRenderModel.rowCount()):
+        idx = self.__vtkRenderModel.index( I, 0, QModelIndex())
+        if self.__vtkRenderModel.data(idx) != "":
+          f.write(self.__vtkRenderModel.data(idx) + '\n')
+      f.close()
+      self.__filePath = filePath
+    except Exception as e:
+      self.sig_log.emit(logSeverity.error.value, self.tr("Error saving file: {}").format(filePath))
+      self.sig_log.emit(logSeverity.error.value, str(e))
+    # Delete blank lines in the display grid
+    self.delEmptyRow()
+    # Reinstates flag
+    self.__modelTransformed = False
+
+  def showConfirmChangeLost(self):
+    m = msgBox(
+                  title     = "Save Changes",
+                  text      = "Do you want to save the changes before closing?",
+                  info      = "If you do not save, all changes made since last opening of the file will be lost.",
+                  icon      = msgIconList.Question,
+                  stdButton = msgButtonList.Save | msgButtonList.Cancel | msgButtonList.Discard,
+                  defButton = msgButtonList.Save,
+                  escButton = msgButtonList.Cancel
+    )
+    return(m.afficheMsg())
+
+  def closeFile(self):
+    if self.__modelTransformed:
+      # GCode changes, we ask for confirmation
+      Ret = self.showConfirmChangeLost()
+      if Ret == msgButtonList.Save:
+        if self.__filePath == "":
+          filePath = self.showFileSave()
+          if filePath == "":
+            # Canceling the dialog box
+            return False
+          else:
+            self.__filePath = filePath
+        self.saveFile(self.__filePath)
+        return True
+      elif Ret == msgButtonList.Discard:
+        # Closing the file consists of emptying the GCode window
+        self.__vtkRenderModel.clear()
+        self.__modelTransformed = False
+        self.__vtkCharge  =False
+        return True
+      else: # Ret == msgButtonList.Cancel:
+        return False
+    else:
+      # GCode not modified, we close without confirmation
+      # Fermer le fichier consiste en vider la fenetre GCode
+      # and delete the GCode charge status.
+      self.__vtkRenderModel.clear()
+      self.__modelTransformed = False
+      self.__vtkCharge  =False
+      return True
+
+
+  @pyqtSlot("QStandardItem*")
+  def on_modelTransformed(self, item):
+    self.__modelTransformed = True
+
+  def modelTransformed(self):
+    return self.__modelTransformed
+
+  def setStlTransformed(self, value:bool):
+    self.__modelTransformed = value

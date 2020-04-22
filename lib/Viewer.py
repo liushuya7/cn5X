@@ -76,6 +76,30 @@ class Viewer(QFrame):
         self.renderer.AddActor(actor)
         self.renderer.ResetCamera()
 
+    def loadVTK(self, file_name):
+        to_load_file = True
+        # Load point cloud file (*.vtk)
+        file_type = os.path.splitext(file_name)[-1].lower()
+        if 'vtk' in file_type:
+            reader = vtk.vtkPolyDataReader()
+            reader.SetFileName(file_name)
+            # reader.ReadAllScalarsOn()
+            # reader.ReadAllVectorsOn()
+            reader.Update()
+
+        else:
+            to_load_file = False
+            print("ERROR: Not a valid pointcloud (.vtk) file!")
+
+        if to_load_file:
+            mapper = vtk.vtkPolyDataMapper()
+            mapper.SetInputConnection(reader.GetOutputPort())
+            actor = vtk.vtkActor()
+            actor.SetMapper(mapper)
+
+            self.renderer.AddActor(actor)
+            self.renderer.ResetCamera()
+
     def processPick(self, object, event):
         point_id = object.GetPointId()
         if point_id >= 0:

@@ -4557,6 +4557,7 @@ background-image: url(:/cn5X/images/laser_test.png);</string>
      <string>&amp;File</string>
     </property>
     <addaction name="mnuAppOpenStl"/>
+    <addaction name="mnuAppOpenVtk"/>
     <addaction name="mnuAppOpenGcode"/>
     <addaction name="mnuAppSaveGcode"/>
     <addaction name="mnuAppSaveGcodeAs"/>
@@ -4706,6 +4707,11 @@ background-image: url(:/cn5X/images/laser_test.png);</string>
   <action name="action_add_path_generation_dialog">
    <property name="text">
     <string>Add Path Generation Dialog</string>
+   </property>
+  </action>
+  <action name="mnuAppOpenVtk">
+   <property name="text">
+    <string>Open vtk File</string>
    </property>
   </action>
  </widget>

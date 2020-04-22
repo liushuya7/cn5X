@@ -41,7 +41,7 @@ from grblDecode import grblDecode
 from gcodeQLineEdit import gcodeQLineEdit
 from cnQPushButton import cnQPushButton
 from grblJog import grblJog
-from myFile import gcodeFile, stlFile
+from myFile import gcodeFile, stlFile, vtkFile
 from grblConfig import grblConfig
 from RegistrationDialog import RegistrationDialog
 from CameraDialog import CameraDialog
@@ -129,6 +129,7 @@ class GrblMainwindow(QtWidgets.QMainWindow):
     self.ui.grpConsole.setCurrentIndex(2)  # active the 3rd tab
 
     self.__stlFile = stlFile(self.vtk_viewer)
+    self.__vtkFile = vtkFile(self.vtk_viewer)
     self.__gcodeFile = gcodeFile(self.ui.gcodeTable)
     self.__gcodeFile.sig_log.connect(self.on_sig_log)
 
@@ -190,6 +191,7 @@ class GrblMainwindow(QtWidgets.QMainWindow):
 
     self.ui.mnuBar.hovered.connect(self.on_mnuBar)     # Application menu connections
     self.ui.mnuAppOpenStl.triggered.connect(self.on_mnuAppOpenStl)
+    self.ui.mnuAppOpenVtk.triggered.connect(self.on_mnuAppOpenVtk)
     self.ui.mnuAppOpenGcode.triggered.connect(self.on_mnuAppOpenGcode)
     self.ui.mnuAppSaveGcode.triggered.connect(self.on_mnuAppSaveGcode)
     self.ui.mnuAppSaveGcodeAs.triggered.connect(self.on_mnuAppSaveGcodeAs)
@@ -474,6 +476,22 @@ class GrblMainwindow(QtWidgets.QMainWindow):
       RC = self.__stlFile.readFile(fileName[0])
       if RC:
         self.setWindowTitle(APP_NAME + " - " + self.__stlFile.filePath())
+      else:
+        # Select the console tab so that the error message is displayed except in case of debug
+        if not self.ui.btnDebug.isChecked():
+          self.ui.grpConsole.setCurrentIndex(2)
+    # Restore mouse cursor
+    self.setCursor(Qt.ArrowCursor)
+
+  @pyqtSlot()
+  def on_mnuAppOpenVtk(self):
+    # Displays the opening dialog
+    fileName = self.__vtkFile.showFileOpen()
+    if fileName[0] != "":
+      self.setCursor(Qt.WaitCursor)
+      RC = self.__vtkFile.readFile(fileName[0])
+      if RC:
+        self.setWindowTitle(APP_NAME + " - " + self.__vtkFile.filePath())
       else:
         # Select the console tab so that the error message is displayed except in case of debug
         if not self.ui.btnDebug.isChecked():
